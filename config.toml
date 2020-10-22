@@ -12,7 +12,7 @@
 # For developpers, if you modify this theme, put your images in `source/images` folder and
 # use grunt task `build` to synchronize assets
 
-baseURL = "https://example.org/"
+baseURL = "https://pedantic-mestorf-41eaa0.netlify.app/"
 languageCode = "en-us"
 defaultContentLanguage = "en-us"
 title = "Hugo tranquilpeak theme"
@@ -23,9 +23,6 @@ paginate = 7
 canonifyurls = true
 
 
-[build]
-  publish = “public/”
-  command = “hugo”
 
 [permalinks]
   post = "/:year/:month/:slug/"
