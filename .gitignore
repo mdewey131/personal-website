@@ -40,3 +40,6 @@ vignettes/*.pdf
 
 # (Hopefully) to make the webpage work
 public/
+
+#Also ignore the project because of course
+.Rproj
