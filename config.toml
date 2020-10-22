@@ -16,13 +16,11 @@ baseURL = "https://pedantic-mestorf-41eaa0.netlify.app/"
 languageCode = "en-us"
 defaultContentLanguage = "en-us"
 title = "Hugo tranquilpeak theme"
-
 disqusShortname = "hugo-tranquilpeak-theme"
 # googleAnalytics = "UA-123-45"
 paginate = 7
 canonifyurls = true
-
-
+ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_cache$", "\\.knit\\.md$", "\\.utf8\\.md$"]
 
 [permalinks]
   post = "/:year/:month/:slug/"
