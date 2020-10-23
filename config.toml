@@ -102,9 +102,15 @@ ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_cache$", "\\.knit\\.md$", "\\.utf8\
   weight = 4
   identifier = "email"
   name = "Email"
-  pre = "<i class=\"sidebar-button-icon fa fa-lg fa-gmail\"></i>"
+  pre = "<i class=\"sidebar-button-icon fa fa-lg fa-inbox\"></i>"
   url = "mailto:michael.dewey131@gmail.com"
 
+[[menu.links]]
+  weight = 5
+  identifier = "twitter"
+  name = "Twitter"
+  pre = "<i class =\"sidebar-button-icon fa fa-lg fa-twitter\"></i>"
+  url = "https://twitter.com/Michael__Dewey"
 
 [[menu.misc]]
   #  weight = 1
