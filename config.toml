@@ -94,14 +94,21 @@ ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_cache$", "\\.knit\\.md$", "\\.utf8\
 [[menu.links]]
   weight = 3
   identifier = "linkedin"
-  name = "LinkedIn"
+  name = "<a href='mailto:michael.dewey131@gmail.com'> LinkedIn </a>"
   pre = "<i class=\"sidebar-button-icon fa fa-lg fa-linkedin\"></i>"
+\
 [[menu.misc]]
   #  weight = 1
   #  identifier = "rss"
   #  name = "RSS"
   #  pre = "<i class=\"sidebar-button-icon fa fa-lg fa-rss\"></i>"
   #  url = "/index.xml"
+  
+  [[menu.links]]
+  weight = 4
+  identifier = "email"
+  name = "Email"
+  pre = "<i class=\"sidebar-button-icon fa fa-lg fa-gmail\"></i>"
 
 [params]
   # Customize date format use to render blog post date, categories and other
