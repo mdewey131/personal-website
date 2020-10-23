@@ -1,0 +1,16 @@
+---
+title: "About Me"
+date: 2020-10-23T16:46:06-07:00
+categories:
+- miscellaneous
+keywords:
+- biography
+- about
+comments:       false
+showMeta:       false
+showActions:    false
+#thumbnailImage: //example.com/image.jpg
+---
+
+#Hi, I'm Michael
+I'm a freelancer based in Los Angeles. I hold a Master's in Economics and Social Sciences from Bocconi University, and two Bachelor's degrees (one in Economics, and a second in Philosophy) from Loyola Marymount University
