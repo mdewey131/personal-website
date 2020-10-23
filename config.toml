@@ -141,7 +141,7 @@ ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_cache$", "\\.knit\\.md$", "\\.utf8\
   # If false it will flat categories.
   hierarchicalCategories = true
 
-  description = "Michael Dewey's Website"
+  description = "Michael Dewey's website. Home for data science projects, freelance work,  and other musings."
 
   # Customization
   # Define the behavior of the sidebar
