@@ -1,3 +1,16 @@
 ---
 site: blogdown:::blogdown_site
+output:
+  blogdown::html_page
 ---
+
+Hi, I'm Michael. I'm a freelance data analyst and tutor located in Los Angeles. 
+Welcome to my website! Here, you'll find updates from personal projects, 
+including my contributions to [https://github.com/mdewey131/snappa-scoreboard](
+Snappa Scoreboard), as well as other objects of interest. In time, I hope to have a
+sizeable archive of statistics lectures that I deliver during tutoring, some practical
+examples of modeling that I've carried out, and various coding projects (like Tidy
+Tuesdays).
+
+This website is made in `blogdown`, a fantastic package in R which allows users
+to make static websites via Hugo. 
