@@ -19,7 +19,6 @@ coverMeta: out
 metaAlignment: center
 title: "Making a Markov Chain Model to Predict Snappa Winners"
 ---
-<!--- Introductory Blurb that will serve as the lead in on the home page -->
 This article is the first of a series related to the game Snappa. For more information about
 what the game is and how it's played, see [here](https://github.com/mdewey131/Snappa-Scoreboard/wiki/An-Overview-of-SnappaMetrics#what-is-snappa)
 <!--more-->
