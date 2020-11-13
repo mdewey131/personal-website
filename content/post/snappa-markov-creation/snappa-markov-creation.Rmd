@@ -148,7 +148,7 @@ shots = max(team_size_A, team_size_B)
 team_A_history = c(current_score_A)
 team_B_history = c(current_score_B)
 
-"A's round, since A always starts the game"
+#A's round, since A always starts the game"
 for (i in 1:shots){
   transition_probabilities_A$offense
     # row and column 1 refer to 0 points, so the current point total must
