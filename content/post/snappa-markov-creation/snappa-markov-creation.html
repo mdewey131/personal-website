@@ -1,0 +1,264 @@
+---
+author: "Michael Dewey"
+date: "2020-11-12"
+output:
+  blogdown::html_page
+slug: "snappa-markov-creation"
+tags:
+- snappa scoreboard
+- Rstats
+- data modeling
+- personal projects
+categories:
+- projects
+thumbnailImage: "simulate_score_shares.jpg"
+thumbnailImagePosition: left
+title: "Making a Markov Chain Model to Predict Snappa Winners"
+---
+
+<script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
+
+
+<p>In my <strong>definitely-not-made-up</strong> role as Senior Lead Snappametrician of the scoreboard project,
+I’ve been giving a lot of thought as to how we could implement a model which tells us
+something about the win probabilities of each team. After all, we have a sense of how
+each team has done empirically (by looking at their win rate), but we have not
+really explored ways of forecasting wins. To my mind, there are broadly two ways
+that one could accomplish this:</p>
+<ol style="list-style-type: decimal">
+<li>Develop a model of team performance which explicitly models each teammate’s
+contribution to the overall performance</li>
+<li>Develop a model which looks only at the team’s performance.</li>
+</ol>
+<p>Between these two options, I prefer the second one. There are multiple reasons,
+but the heart of it comes down to this: when one is taking the first steps at an
+attempt at modeling, it is usually better to use a parsimonious model with easy
+interpretation compared to a complex model with a more complicated interpretation<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.
+It’s important to keep in mind that snappa data is, fundamentally, a time series.
+All data is gathered according to the scores which are input into their database table,
+and the other major tables generally rely on the scores table to obtain their values.
+Those scores are entered in sequentially, and although we only observe scores when
+they happen, we know the number of shots that each team takes in each round according
+to the rules of the game. Having a model that is relatively simple, and that actually
+uses this structure, also allows us to keep the components of the model up-to-date
+as the app is running.</p>
+<div id="formal-structure" class="section level2">
+<h2>Formal Structure</h2>
+<p>Having thought about this issue for some time, I dusted off the copy of my notes
+from courses on time series and began building a <a href="https://en.wikipedia.org/wiki/Markov_chain">Markov Chain model</a>.
+I’ve been a huge fan of Markov Chains ever since I first learned about them in
+my coursework. To me, their brilliance lies in their simplicity as a statistical tool.
+Once data is organized into a time series, a modeler should have some notion of
+the temporal dependence between observations. The Markov chain that I am using
+works off of the team’s score totals over time, and only uses one-period dependence,
+meaning that, if I am at time <span class="math inline">\(t\)</span>, conditioning on the score at time <span class="math inline">\(t-1\)</span> is just
+as good as conditioning on the entire preceding time series <span class="math inline">\(1:t-1\)</span>. Formally,
+this is stated as
+<span class="math display">\[ P(Y_t | Y_{t-1}) = P(Y_t | Y_{t-1}, Y_{t-2}, ... , Y_1) \]</span>
+Where the observation variable <span class="math inline">\(Y\)</span> in the time series <span class="math inline">\((Y_i)_{i \geq 1}\)</span> refers to
+the team’s score. Fundamentally, the Markov chain model in this data set refers
+to the evolution of scores over time for each team. The probability distribution
+of <span class="math inline">\(Y_t\)</span> conditional on <span class="math inline">\(Y_{t-1}\)</span> is represented with a transition matrix, which
+reports the probability of moving from one score to another for team <span class="math inline">\(\tau\)</span>. Each row of the matrix
+represents the score at time <span class="math inline">\(t-1\)</span>, and each column represents a score at time
+<span class="math inline">\(t\)</span>.</p>
+<p><span class="math display">\[A_{\ \tau,  \ s} = \begin{vmatrix}
+p_{\ 0, 0} &amp; p_{\ 0 , 1} &amp; \ \ ... \ \  &amp; p_{ \ 0, \ 50}  \\
+p_{\ 1, 0} &amp; p_{\ 1 , 1} &amp;\ \ ... \ \  &amp; p_{ \ 1, \ 50} \\
+\vdots &amp; \vdots &amp; \ddots  &amp;  \vdots  \\
+p_{\ 50, 0} &amp; p_{\ 50 , 1} &amp; \ \ ... \ \  &amp; p_{ \ 50, \ 50}  \\
+\end{vmatrix} \]</span></p>
+<p>The subscript <span class="math inline">\(s\)</span> refers to the “side” that a team is on - offense or defense.
+Because each side relies on different conditions in order to observe a
+transition<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>,
+I keep their transition probabilities separate. My model would thus be described
+as a one-period non-homogeneous Markov chain with a periodicity equal to the maximum
+number of players on either team<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>.
+The choice of a 51x51 matrix is essentially arbitrary. The nature of snappa suggests
+that most games won’t get anywhere near 50 points, though we have seen outliers before
+that have been around 40. If I need to in the future, I will expand the size of
+this matrix, but in fact most transition probabilities beyond row 25 are completely
+blank at this point in time, meaning we have room to grow.</p>
+<p>Because a team can only be at one score at a given point in time, each row of the
+matrix expresses a conditional distribution, namely <span class="math inline">\(P(Y_t \ \ | \ \ Y_{t-1})\)</span>.
+This means that each row of the matrix sums to one. Each row is a <a href="https://en.wikipedia.org/wiki/Multinomial_distribution"><em>multinomial</em>
+<em>distribution</em></a>, and
+the best estimator that one can obtain for the parameters of interest (the values
+<span class="math inline">\(p_{i,j}\)</span> in the transition matrix) is given as follows:</p>
+<p><span class="math display">\[\hat{p}_{\ i, \ j} = \frac{\# (i \ \  in \ \  t-1, \ \ j \ \ in \ \  t \ \ )}{total \ \  \# \ \  of \ \  shots \ \ at \ \ i }\]</span>
+For notational ease, I do not index each <span class="math inline">\(\hat{p}_{\ i, \ j}\)</span> by team <span class="math inline">\(\tau\)</span> and
+side <span class="math inline">\(s\)</span>, though they are calculated specific to each team and each side.</p>
+</div>
+<div id="turning-points-into-wins---theoretically-and-practically" class="section level2">
+<h2>Turning points into wins - theoretically and practically</h2>
+<p>In order to translate the scores into a win probability, I employ simulations of
+games of snappa. For each team, I take</p>
+<ul>
+<li>Their transition probabilities as <code>transition_probabilities_SIDE</code>, a list with
+named matrices for <code>offense</code> and <code>defense</code>, where <code>SIDE</code> is the side that the
+team is playing on, A or B.</li>
+<li>Their team sizes, as <code>team_size_SIDE</code>.</li>
+<li>Their current point total (defaults to zero)</li>
+<li>A backup transition matrix for each side (more than to follow)</li>
+</ul>
+<p>I also record the final points needed to end the game (which is usually, but not
+always, 21).</p>
+<p>Each team plays a game of snappa by drawing the “next-step ahead”
+point total from their transition probability matrix. At a basic level, then,
+two simulated rounds - one offense and one defense for each team -
+proceeds like this:</p>
+<pre class="r"><code>shots = max(team_size_A, team_size_B)
+
+team_A_history = c(current_score_A)
+team_B_history = c(current_score_B)
+
+&quot;A&#39;s round, since A always starts the game&quot;
+for (i in 1:shots){
+  transition_probabilities_A$offense
+    # row and column 1 refer to 0 points, so the current point total must
+    # be shifted by 1
+    A_state = team_A_history %&gt;% last() + 1
+    
+    # Select the row of current scores, i.e. select the correct conditional 
+    # distribution
+    current_probabilities_A = transition_probabilities_A$offense[A_state, ]
+    
+    # Draw the new current state
+    shot_draw_A = which(rmultinom(1, 1, current_probabilities_A) == 1)
+    
+    #Subtract that state by one to get the point total
+    points = shot_draw_A - 1
+    
+    #Append the team&#39;s history with the new_score
+    team_A_history = team_A_history %&gt;% append(points)
+    
+    # Glossing over some of the trickier conditions to evaluate: whether or not
+    # B can score given the number of points that A has scored. This depends in
+    # part on team sizes and in part on remarkable luck. I just allow B to have
+    # a chance to score regardless of what A has just done, though future versions
+    # should be more restrictive
+    B_state = team_B_history %&gt;% last() + 1
+    current_probabilities_B = transition_probabilities_B$defense[B_state, ]
+    shot_draw_B = which(rmultinom(1, 1, current_probabilities_B) == 1)
+    points = shot_draw_B - 1
+    team_B_history = team_B_history %&gt;% append(points)
+    
+}
+
+# Begin B&#39;s round
+for (i in 1:shots){
+  B_state = team_B_history %&gt;% last() + 1
+    current_probabilities_B = transition_probabilities_B$offense[B_state, ]
+    shot_draw_B = which(rmultinom(1, 1, current_probabilities_B) == 1)
+    points = shot_draw_B - 1
+    team_B_history = team_B_history %&gt;% append(points)
+    
+    A_state = team_A_history %&gt;% last() + 1
+    current_probabilities_A = transition_probabilities_A$defense[A_state, ]
+    shot_draw_A = which(rmultinom(1, 1, current_probabilities_A) == 1)
+    points = shot_draw_A - 1
+    team_A_history = team_A_history %&gt;% append(points)
+  
+}</code></pre>
+<p>The upshot of this approach is that I end up with fairly plausible scores once
+I enter in additional lines of code that handle rebuttal rules, and thus determine
+the game’s stopping point. Also, there is no need for me to worry about the
+precision of individual effect sizes because my model isn’t required to know
+<em>who</em> is on each team, just what their transition probabilities are. In fact,
+not modeling such behavior is quite advantageous at this point in data collection,
+because even the most frequently observed team only has around 40 games played, and
+parsing out individual and team-collaboration effect sizes on top of everything else
+would really strain a model’s degrees of freedom.
+My model is “dumb” in the sense that it doesn’t really try to do anything extra
+based on team matchups, number of games played in the day, time of day, or really any
+other factors that would seem to be salient. I simply learn from what I’ve seen
+out of each team.</p>
+<p>One problem with this method is that the data that is collected on teams, particularly
+teams with few games played, is sparse. Those teams will frequently have rows where,
+there are zeros everywhere because I haven’t seen that team at that point total<a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>. This would cause
+the above code to exit because <code>current_probabilities_SIDE</code> would be zero everywhere,
+and the <code>shot_draw</code> would not work.</p>
+<p>To get around this issue, I use my backup transition matrix. This matrix is only
+8x8, much smaller than the usual one, because it records the transition of “states”
+across time, meaning that a given element of the matrix, <span class="math inline">\(\hat{p}^{BU}_{\ i,\ j}\)</span>,
+records the probability of scoring <span class="math inline">\(i\)</span> points in time <span class="math inline">\(t\)</span>, conditional on having
+scored <span class="math inline">\(j\)</span> at <span class="math inline">\(t-1\)</span>. Because we limit recording points at 7 and it’s possible to
+score 0 points, there are 8 rows and columns. This matrix technically breaks the
+usual equation for Markov chains, but I don’t see it as a huge problem. For one,
+each state transition doesn’t differ all that much from the probabilities of
+score transitions of the same size in the usual transition probabilities. That is,
+the chance of a team going from 0 points last shot to 1 point this shot isn’t much
+different from that team’s chance of going from 13 to 14 in the same time frame.
+Secondly, and more importantly, the probability that this matrix is used goes to zero
+as the number of games increases, since I will come to observe teams at all combinations
+of scores “eventually”. This temporary “break” in the usual model, then, is a
+necessary evil while I gather more data.</p>
+<p>The largest downside to this approach modeling approach is that it relies on me
+having actually observed the teams beforehand. If there’s a new team combination in the database,
+there would be no prior history from which to estimate probabilities, and thus
+I would not be able to run any simulations. I’m currently thinking through
+how the app can get around this issue, but for now it’s an open question.</p>
+</div>
+<div id="okay-so-we-played-a-game-now-what" class="section level2">
+<h2>Okay, so we played a game, now what?</h2>
+<p>We play more! I’ve been running 500 as a benchmark, though because the app
+works off of limited RAM, I’ve been running most simulations in-game only
+100 times. After each game is done, I record the history of scores (as a named
+vector which states the round in which the transition was recorded), which team
+won, and the final round. My point estimate for the win probability of A and B are
+are simply
+<span class="math display">\[\hat{p}_A = \frac{\# \ \ A \ \ wins}{\# \ \ iterations}\]</span>
+<span class="math display">\[ \hat{p}_B = 1 - \hat{p}_A \]</span>
+I take these estimates because I reason that the win probabilities are binomial outcomes
+and thus the unbiased estimator of the win probability is of the form above<a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a>.</p>
+</div>
+<div id="moving-forward" class="section level2">
+<h2>Moving Forward</h2>
+<p>I view this post as the first in a series on the Markov model that I’ve built. I still
+have a lot of work to do on this model, however. For one, I need to be more restrictive
+about the potential for scoring since, as I mentioned above, some score combinations
+necessarily mean that the defending team cannot score. I’d also like to more around
+the forecasting error that I obtain in the final scores (currently the app’s prediction
+is the modal score outcome in games that the “overall winners” win), and to obtain
+some sense of the variance. For that, I need to continue to read up and learn.
+I’d also like to do more around visualization of the games (though I do obviously have
+an affinity for the graph that I’ve included as the header image), because I think that
+there is a lot which can be done there</p>
+<!-- Link here to material that you're working on for the Snappa DB,
+once that's finished. I think it's probably for the best that you don't try to 
+rehash everything that you wrote there  here. The focus should be more on what 
+you did tangibly, maybe featuring a small demonstration at the end, and DEFINITELY 
+some visualizations -->
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>There
+is actually a lot that could
+be said here about why this is true, but I think the sufficient argument is that
+if one was to try and establish a model “a priori”, they would need to make a
+lot of assumptions about the correlation structure of individual performance,
+which is a time series. If, instead, one was to try and build the model through
+some kind of specification search, particularly when that search involves lags
+of the points that each person has scored over time, I believe they would find
+some spurious evidence about the true importance of many lagged variables,
+but particularly on the points that each person has scored over time, which correlate
+heavily to the final outcome of the game regardless of whether one’s dependent
+variable is the final point total or the win probability. I don’t have a good
+sense of the proper informational criterion to impose as part of that search,
+and I suspect that a poor choice of criteria would cause a model to be too greedy
+with what it considers to be important compared to the structural parameters that
+I would consider to be important.<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>Specifically, when one is on offense, it is merely necessary to
+throw a valid shot which is undefended, while on defense it is both necessary that
+a player on offense throws a valid shot <strong>and</strong> that the team on defense paddles.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>e.g., whether a game is 3v2 or 3v3, the total number
+of shots per round is still 3<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="fn4"><p>This is
+also a problem, even with teams that have a lot of observations, when simulations
+continue on longer than any game of snappa that they have played.<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
+<li id="fn5"><p>Although, if
+I’m wrong about this, I’m hoping that <a href="https://meta.wikimedia.org/wiki/Cunningham%27s_Law#:~:text=Cunningham&#39;s%20Law%20states%20%22the%20best,Cunningham%2C%20father%20of%20the%20wiki.">Cunningham’s Law</a>
+will see me through<a href="#fnref5" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
