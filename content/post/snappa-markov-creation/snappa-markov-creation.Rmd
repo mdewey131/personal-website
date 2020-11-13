@@ -33,7 +33,7 @@ really explored ways of forecasting wins. To my mind, there are broadly two ways
 that one could accomplish this: 
 
 1. Develop a model of team performance which explicitly models each teammate's 
-  contribution to the overall performance
+  contribution to the overall performance.
 2. Develop a model which looks only at the team's performance.
 
 Between these two options, I prefer the second one. There are multiple reasons,
@@ -62,7 +62,8 @@ Those scores are entered in sequentially, and although we only observe scores wh
 they happen, we know the number of shots that each team takes in each round according
 to the rules of the game. Having a model that is relatively simple, and that actually
 uses this structure, also allows us to keep the components of the model up-to-date
-as the app is running.
+as the app is running. I certainly wouldn't rule out the potential of doing a 
+more complex model down the line, but even a simple model can have surprising depth. 
 
 ## Formal Structure
 Having thought about this issue for some time, I dusted off the copy of my notes 
@@ -72,17 +73,20 @@ my coursework. To me, their brilliance lies in their simplicity as a statistical
 <!-- Something more here about the formal structure of the model would be good.
 Like, actually write out the progression of Y_i and explain how it moves over
 time -->
-
-Once data is organized into a time series, a modeler should have some notion of
-the temporal dependence between observations. The Markov chain that I am using 
-works off of the team's score totals over time, and only uses one-period dependence, 
-meaning that, if I am at time $t$, conditioning on the score at time $t-1$ is just
-as good as conditioning on the entire preceding time series $1:t-1$. Formally, 
+Markov chains are a first step away from the idealized world of independent and
+identially distributed random variables. Once data is organized into a time series, 
+a modeler should have some notion of the temporal dependence between observations. 
+The Markov chain that I am using works off of the team's score totals over time, 
+and only uses one-period dependence,  meaning that, if I am at time $t$, 
+conditioning on the score at time $t-1$ is just as good as conditioning on the 
+entire preceding time series $1:t-1$. Formally, 
 this is stated as 
 $$ P(Y_t | Y_{t-1}) = P(Y_t | Y_{t-1}, Y_{t-2}, ... , Y_1) $$
 Where the observation variable $Y$ in the time series $(Y_i)_{i \geq 1}$ refers to
-the team's score. Fundamentally, the Markov chain model in this data set refers
-to the evolution of scores over time for each team. The probability distribution 
+the team's score. Practically, I am assuming that I do not need to know what a team's
+score was two rounds ago, only what it is in the moment, to understand what it might
+be in the next moment. The Markov chain model in this data set specifically models
+the evolution of scores over time for each team. The probability distribution 
 of $Y_t$ conditional on $Y_{t-1}$ is represented with a transition matrix, which 
 reports the probability of moving from one score to another for team $\tau$. Each row of the matrix
 represents the score at time $t-1$, and each column represents a score at time
@@ -210,17 +214,17 @@ because even the most frequently observed team only has around 40 games played, 
 parsing out individual and team-collaboration effect sizes on top of everything else
 would really strain a model's degrees of freedom. 
 My model is "dumb" in the sense that it doesn't really try to do anything extra 
-based on team matchups, number of games played in the day, time of day, or really any 
+based on team match-ups, the number of games played in the day, the time of day, or really any 
 other factors that would seem to be salient. I simply learn from what I've seen 
 out of each team.
 
 One problem with this method is that the data that is collected on teams, particularly
 teams with few games played, is sparse. Those teams will frequently have rows where,
-there are zeros everywhere because I haven't seen that team at that point total^[This is
-also a problem, even with teams that have a lot of observations, when simulations
-continue on longer than any game of Snappa that they have played.]. This would cause
-the above code to exit because `current_probabilities_SIDE` would be zero everywhere,
-and the `shot_draw` would not work.
+there are zeros everywhere because they've never reached an otherwise plausible
+point total^[This is also a problem, even with teams that have a lot of observations, 
+when simulations continue on longer than any game of Snappa that they have played.]. 
+This would cause the above code to exit because `current_probabilities_SIDE` would be 
+zero everywhere, and the `shot_draw` would not work.
 
 To get around this issue, I use my backup transition matrix. This matrix is only
 8x8, much smaller than the usual one, because it records the transition of "states"
@@ -230,15 +234,16 @@ scored $j$ at $t-1$. Because we limit recording points at 7 and it's possible to
 score 0 points, there are 8 rows and columns. This matrix technically breaks the 
 usual equation for Markov chains, but I don't see it as a huge problem. For one,
 each state transition doesn't differ all that much from the probabilities of 
-score transitions of the same size in the usual transition probabilities. That is,
-the chance of a team going from 0 points last shot to 1 point this shot isn't much
-different from that team's chance of going from 13 to 14 in the same time frame.
-Secondly, and more importantly, the probability that this matrix is used goes to zero
-as the number of games increases, since I will come to observe teams at all combinations
-of scores "eventually". This temporary "break" in the usual model, then, is a 
-necessary evil while I gather more data. 
+score transitions of the same size in the usual transition probabilities empirically.
+That is, the chance of a team going from 0 points last shot to 1 point this shot isn't much
+different from that team's chance of going from 13 to 14 in the same time frame from
+what I've observed of the data. Secondly, and more importantly, the probability
+that this matrix is used goes to zero as the number of games increases, since I 
+will come to observe teams at all combinations of scores "eventually". This 
+temporary "break" in the usual model, then, is a stopgap measure while I gather 
+more data. 
 
-The largest downside to this approach modeling approach is that it relies on me
+The largest downside to this modeling approach is that it relies on me
 having actually observed the teams beforehand. If there's a new team combination in the database,
 there would be no prior history from which to estimate probabilities, and thus
 I would not be able to run any simulations. I'm currently thinking through 
@@ -246,32 +251,35 @@ how the app can get around this issue, but for now it's an open question.
 
 ## Okay, so we played a game, now what?
 
-We play more! I've been running 500 as a benchmark, though because the app
-works off of limited RAM, I've been running most simulations in-game only 
-100 times. After each game is done, I record the history of scores (as a named
-vector which states the round in which the transition was recorded), which team
-won, and the final round. My point estimate for the win probability of A and B are
-are simply
+We play more! I've been running 500 games as a benchmark on my personal computer,
+but because the app works off of limited RAM, I've been running most simulations 
+in-game only 100 times. After each game is done, I record the history of scores 
+(as a named vector which states the round in which the transition was recorded),
+which team won, and the final round. My point estimate for the win probability of 
+A and B are are simply
 $$\hat{p}_A = \frac{\# \ \ A \ \ wins}{\# \ \ iterations}$$
 $$ \hat{p}_B = 1 - \hat{p}_A $$
-I take these estimates because I reason that the win probabilities are binomial outcomes
-and thus the unbiased estimator of the win probability is of the form above^[Although, if
-I'm wrong about this, I'm hoping that [Cunningham's Law](https://meta.wikimedia.org/wiki/Cunningham%27s_Law#:~:text=Cunningham's%20Law%20states%20%22the%20best,Cunningham%2C%20father%20of%20the%20wiki.)
+I take these estimates because I reason that the number of games a team wins
+is modeled by a binomial distribution, and thus the maximum likelihood estimator 
+of the win probability is of the form above^[Although, if
+I'm wrong about this because the underlying distribution is not binomial for some reason unbeknownst to me, I'm hoping that [Cunningham's Law](https://meta.wikimedia.org/wiki/Cunningham%27s_Law#:~:text=Cunningham's%20Law%20states%20%22the%20best,Cunningham%2C%20father%20of%20the%20wiki.)
 will see me through]. 
 
 
 ## Moving Forward
 
-I view this post as the first in a series on the Markov model that I've built. I still
-have a lot of work to do on this model, however. For one, I need to be more restrictive
-about the potential for scoring since, as I mentioned above, some score combinations
-necessarily mean that the defending team cannot score. I'd also like to more around
-the forecasting error that I obtain in the final scores (currently the app's prediction
-is the modal score outcome in games that the "overall winners" win), and to obtain
-some sense of the variance. For that, I need to continue to read up and learn. 
+This post is the first in a series on the Markov model that I've built. I intend
+to write more about how the model handles streaming game data, how the final statistics 
+are visualized, and how the model is performing. I still have a lot of work to do 
+on it, however. For one, I need to be more restrictive about the potential for 
+scoring since, as I mentioned above, some score combinations necessarily  means
+that the defending team cannot score. I'd also like to more around the forecasting 
+error that I obtain in the final scores (currently the app's prediction
+is the modal score outcome in games that the "overall winners" win), and to obtain 
+the variance. For that, I need to continue to re-learn and code. 
 I'd also like to do more around visualization of the games (though I do obviously have
 an affinity for the graph that I've included as the header image), because I think that
-there is a lot which can be done there
+there is a lot which can be done there. 
 
 
 <!-- Link here to material that you're working on for the Snappa DB,
