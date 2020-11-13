@@ -5,7 +5,7 @@ output:
   blogdown::html_page
 slug: "snappa-markov-creation"
 tags:
-- snappa scoreboard
+- Snappa scoreboard
 - Rstats
 - data modeling
 - personal projects
@@ -15,10 +15,17 @@ thumbnailImage: "/img/simulate_score_shares.jpg"
 thumbnailImagePosition: left
 coverImage: "/img/simulate_score_shares.jpg"
 coverCaption: "A visualization presented to users in-app of the score share in each simulated game"
+coverMeta: out
+metaAlignment: center
 title: "Making a Markov Chain Model to Predict Snappa Winners"
 ---
+<!--- Introductory Blurb that will serve as the lead in on the home page -->
+This article is the first of a series related to the game Snappa. For more information about
+what the game is and how it's played, see [here](https://github.com/mdewey131/Snappa-Scoreboard/wiki/An-Overview-of-SnappaMetrics#what-is-snappa)
+<!--more-->
 
-In my **definitely-not-made-up** role as Senior Lead Snappametrician of the scoreboard project,
+
+In my **definitely-not-made-up** role as Senior Lead Snappametrician of the [Snappa scoreboard](https://github.com/mdewey131/Snappa-Scoreboard),
 I've been giving a lot of thought as to how we could implement a model which tells us
 something about the win probabilities of each team. After all, we have a sense of how 
 each team has done empirically (by looking at their win rate), but we have not 
@@ -48,7 +55,7 @@ sense of the proper informational criterion to impose as part  of that search,
 and I suspect that a poor choice of criteria would cause a model to be too greedy 
 with what it considers to be important compared to the structural parameters that 
 I would consider to be important.]. 
-It's important to keep in mind that snappa data is, fundamentally, a time series. 
+It's important to keep in mind that Snappa data is, fundamentally, a time series. 
 All data is gathered according to the scores which are input into their database table,
 and the other major tables generally rely on the scores table to obtain their values. 
 Those scores are entered in sequentially, and although we only observe scores when 
@@ -62,6 +69,10 @@ Having thought about this issue for some time, I dusted off the copy of my notes
 from courses on time series and began building a [Markov Chain model](https://en.wikipedia.org/wiki/Markov_chain).
 I've been a huge fan of Markov Chains ever since I first learned about them in 
 my coursework. To me, their brilliance lies in their simplicity as a statistical tool.
+<!-- Something more here about the formal structure of the model would be good.
+Like, actually write out the progression of Y_i and explain how it moves over
+time -->
+
 Once data is organized into a time series, a modeler should have some notion of
 the temporal dependence between observations. The Markov chain that I am using 
 works off of the team's score totals over time, and only uses one-period dependence, 
@@ -89,11 +100,12 @@ Because each side relies on different conditions in order to observe a
 transition^[Specifically, when one is on offense, it is merely necessary to
 throw a valid shot which is undefended, while on defense it is both necessary that
 a player on offense throws a valid shot **and** that the team on defense paddles.],
-I keep their transition probabilities separate. My model would thus be described
-as a one-period non-homogeneous Markov chain with a periodicity equal to the maximum
+I keep their transition probabilities separate. My model would be described in a
+clinical way as a one-period non-homogeneous Markov chain with a periodicity equal to the maximum
 number of players on either team^[e.g., whether a game is 3v2 or 3v3, the total number
-of shots per round is still 3]. 
-The choice of a 51x51 matrix is essentially arbitrary. The nature of snappa suggests
+of shots per round is still 3]. In more plain English, that's a typical Markov chain 
+with a transition matrix that changes over a fixed time period. 
+The choice of a 51x51 matrix is essentially arbitrary. The nature of Snappa suggests
 that most games won't get anywhere near 50 points, though we have seen outliers before
 that have been around 40. If I need to in the future, I will expand the size of 
 this matrix, but in fact most transition probabilities beyond row 25 are completely
@@ -101,10 +113,11 @@ blank at this point in time, meaning we have room to grow.
 
 Because a team can only be at one score at a given point in time, each row of the
 matrix expresses a conditional distribution, namely $P(Y_t \ \ | \ \ Y_{t-1})$. 
-This means that each row of the matrix sums to one. Each row is a [*multinomial*
+This means that each row of the matrix sums to one. Each row is, in fact, a [*multinomial*
 *distribution*](https://en.wikipedia.org/wiki/Multinomial_distribution), and
-the best estimator that one can obtain for the parameters of interest (the values
-$p_{i,j}$ in the transition matrix) is given as follows:
+the [maximum likelihood estimator](https://en.wikipedia.org/wiki/Maximum_likelihood_estimation) 
+for the parameters of interest (the values
+$p_{i,j}$ in the transition matrix) are 
 
 $$\hat{p}_{\ i, \ j} = \frac{\# (i \ \  in \ \  t-1, \ \ j \ \ in \ \  t \ \ )}{total \ \  \# \ \  of \ \  shots \ \ at \ \ i }$$
 For notational ease, I do not index each $\hat{p}_{\ i, \ j}$ by team $\tau$ and 
@@ -112,7 +125,7 @@ side $s$, though they are calculated specific to each team and each side.
 
 ## Turning points into wins - theoretically and practically
 In order to translate the scores into a win probability, I employ simulations of 
-games of snappa. For each team, I take
+games of Snappa. For each team, I take
 
 * Their transition probabilities as `transition_probabilities_SIDE`, a list with
 named matrices for `offense` and `defense`, where `SIDE` is the side that the
@@ -124,7 +137,7 @@ team is playing on, A or B.
 I also record the final points needed to end the game (which is usually, but not
 always, 21). 
 
-Each team plays a game of snappa by drawing the "next-step ahead"
+Each team plays a game of Snappa by drawing the "next-step ahead"
 point total from their transition probability matrix. At a basic level, then,
 two simulated rounds - one offense and one defense for each team -
 proceeds like this:
@@ -205,7 +218,7 @@ One problem with this method is that the data that is collected on teams, partic
 teams with few games played, is sparse. Those teams will frequently have rows where,
 there are zeros everywhere because I haven't seen that team at that point total^[This is
 also a problem, even with teams that have a lot of observations, when simulations
-continue on longer than any game of snappa that they have played.]. This would cause
+continue on longer than any game of Snappa that they have played.]. This would cause
 the above code to exit because `current_probabilities_SIDE` would be zero everywhere,
 and the `shot_draw` would not work.
 

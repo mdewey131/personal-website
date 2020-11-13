@@ -22,14 +22,14 @@ explored the role that the internet played in U.S. political polarization betwee
 subgroups through causal forest machine learning. The curious reader can find a copy
 of that work [here](/pdf/Thesis.pdf). 
 
-  In the time since defending my thesis, I have
+  Since defending my thesis in April of 2020, I have
 been keeping busy by balancing freelancing and personal projects while looking
-for steady employment. You can find a link to my github page in the sidebar, where
+for steady employment. You can find a link to my GitHub page in the sidebar, where
 I am currently working on a Shiny app with my friend Mark Barrett. That application tracks
-performance in a game known as Snappa. Although the game itself is quite non-serious (and
-exclusively a weekend activity), I'm quite proud of the project's progress. In the future,
-I'll be making write-ups of some of the features that I've implemented and the results
-that I've found. 
+performance in a game known as [Snappa](https://github.com/mdewey131/Snappa-Scoreboard/wiki/An-Overview-of-SnappaMetrics#what-is-snappa). Although the game itself is quite non-serious (and
+exclusively a weekend activity), the project itself has been an enjoyable source
+of personal growth in coding and data analysis. In the future, I'll be making 
+write-ups of some of  the features that I've implemented and the results that I've found. 
 
   If you would like to get in contact with me, feel free to reach out. My email and other social
 links are listed in the sidebar, and I'd love to hear from you.

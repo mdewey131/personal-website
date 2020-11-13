@@ -5,7 +5,7 @@ output:
   blogdown::html_page
 slug: "snappa-markov-creation"
 tags:
-- snappa scoreboard
+- Snappa scoreboard
 - Rstats
 - data modeling
 - personal projects
@@ -15,13 +15,19 @@ thumbnailImage: "/img/simulate_score_shares.jpg"
 thumbnailImagePosition: left
 coverImage: "/img/simulate_score_shares.jpg"
 coverCaption: "A visualization presented to users in-app of the score share in each simulated game"
+coverMeta: out
+metaAlignment: center
 title: "Making a Markov Chain Model to Predict Snappa Winners"
 ---
 
 <script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
 
 
-<p>In my <strong>definitely-not-made-up</strong> role as Senior Lead Snappametrician of the scoreboard project,
+<!--- Introductory Blurb that will serve as the lead in on the home page -->
+<p>This article is the first of a series related to the game Snappa. For more information about
+what the game is and how it’s played, see <a href="https://github.com/mdewey131/Snappa-Scoreboard/wiki/An-Overview-of-SnappaMetrics#what-is-snappa">here</a>
+<!--more--></p>
+<p>In my <strong>definitely-not-made-up</strong> role as Senior Lead Snappametrician of the <a href="https://github.com/mdewey131/Snappa-Scoreboard">Snappa scoreboard</a>,
 I’ve been giving a lot of thought as to how we could implement a model which tells us
 something about the win probabilities of each team. After all, we have a sense of how
 each team has done empirically (by looking at their win rate), but we have not
@@ -36,7 +42,7 @@ contribution to the overall performance</li>
 but the heart of it comes down to this: when one is taking the first steps at an
 attempt at modeling, it is usually better to use a parsimonious model with easy
 interpretation compared to a complex model with a more complicated interpretation<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.
-It’s important to keep in mind that snappa data is, fundamentally, a time series.
+It’s important to keep in mind that Snappa data is, fundamentally, a time series.
 All data is gathered according to the scores which are input into their database table,
 and the other major tables generally rely on the scores table to obtain their values.
 Those scores are entered in sequentially, and although we only observe scores when
@@ -50,7 +56,10 @@ as the app is running.</p>
 from courses on time series and began building a <a href="https://en.wikipedia.org/wiki/Markov_chain">Markov Chain model</a>.
 I’ve been a huge fan of Markov Chains ever since I first learned about them in
 my coursework. To me, their brilliance lies in their simplicity as a statistical tool.
-Once data is organized into a time series, a modeler should have some notion of
+<!-- Something more here about the formal structure of the model would be good.
+Like, actually write out the progression of Y_i and explain how it moves over
+time --></p>
+<p>Once data is organized into a time series, a modeler should have some notion of
 the temporal dependence between observations. The Markov chain that I am using
 works off of the team’s score totals over time, and only uses one-period dependence,
 meaning that, if I am at time <span class="math inline">\(t\)</span>, conditioning on the score at time <span class="math inline">\(t-1\)</span> is just
@@ -73,20 +82,22 @@ p_{\ 50, 0} &amp; p_{\ 50 , 1} &amp; \ \ ... \ \  &amp; p_{ \ 50, \ 50}  \\
 <p>The subscript <span class="math inline">\(s\)</span> refers to the “side” that a team is on - offense or defense.
 Because each side relies on different conditions in order to observe a
 transition<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>,
-I keep their transition probabilities separate. My model would thus be described
-as a one-period non-homogeneous Markov chain with a periodicity equal to the maximum
-number of players on either team<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>.
-The choice of a 51x51 matrix is essentially arbitrary. The nature of snappa suggests
+I keep their transition probabilities separate. My model would be described in a
+clinical way as a one-period non-homogeneous Markov chain with a periodicity equal to the maximum
+number of players on either team<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>. In more plain English, that’s a typical Markov chain
+with a transition matrix that changes over a fixed time period.
+The choice of a 51x51 matrix is essentially arbitrary. The nature of Snappa suggests
 that most games won’t get anywhere near 50 points, though we have seen outliers before
 that have been around 40. If I need to in the future, I will expand the size of
 this matrix, but in fact most transition probabilities beyond row 25 are completely
 blank at this point in time, meaning we have room to grow.</p>
 <p>Because a team can only be at one score at a given point in time, each row of the
 matrix expresses a conditional distribution, namely <span class="math inline">\(P(Y_t \ \ | \ \ Y_{t-1})\)</span>.
-This means that each row of the matrix sums to one. Each row is a <a href="https://en.wikipedia.org/wiki/Multinomial_distribution"><em>multinomial</em>
+This means that each row of the matrix sums to one. Each row is, in fact, a <a href="https://en.wikipedia.org/wiki/Multinomial_distribution"><em>multinomial</em>
 <em>distribution</em></a>, and
-the best estimator that one can obtain for the parameters of interest (the values
-<span class="math inline">\(p_{i,j}\)</span> in the transition matrix) is given as follows:</p>
+the <a href="https://en.wikipedia.org/wiki/Maximum_likelihood_estimation">maximum likelihood estimator</a>
+for the parameters of interest (the values
+<span class="math inline">\(p_{i,j}\)</span> in the transition matrix) are</p>
 <p><span class="math display">\[\hat{p}_{\ i, \ j} = \frac{\# (i \ \  in \ \  t-1, \ \ j \ \ in \ \  t \ \ )}{total \ \  \# \ \  of \ \  shots \ \ at \ \ i }\]</span>
 For notational ease, I do not index each <span class="math inline">\(\hat{p}_{\ i, \ j}\)</span> by team <span class="math inline">\(\tau\)</span> and
 side <span class="math inline">\(s\)</span>, though they are calculated specific to each team and each side.</p>
@@ -94,7 +105,7 @@ side <span class="math inline">\(s\)</span>, though they are calculated specific
 <div id="turning-points-into-wins---theoretically-and-practically" class="section level2">
 <h2>Turning points into wins - theoretically and practically</h2>
 <p>In order to translate the scores into a win probability, I employ simulations of
-games of snappa. For each team, I take</p>
+games of Snappa. For each team, I take</p>
 <ul>
 <li>Their transition probabilities as <code>transition_probabilities_SIDE</code>, a list with
 named matrices for <code>offense</code> and <code>defense</code>, where <code>SIDE</code> is the side that the
@@ -105,7 +116,7 @@ team is playing on, A or B.</li>
 </ul>
 <p>I also record the final points needed to end the game (which is usually, but not
 always, 21).</p>
-<p>Each team plays a game of snappa by drawing the “next-step ahead”
+<p>Each team plays a game of Snappa by drawing the “next-step ahead”
 point total from their transition probability matrix. At a basic level, then,
 two simulated rounds - one offense and one defense for each team -
 proceeds like this:</p>
@@ -258,7 +269,7 @@ a player on offense throws a valid shot <strong>and</strong> that the team on de
 of shots per round is still 3<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
 <li id="fn4"><p>This is
 also a problem, even with teams that have a lot of observations, when simulations
-continue on longer than any game of snappa that they have played.<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
+continue on longer than any game of Snappa that they have played.<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
 <li id="fn5"><p>Although, if
 I’m wrong about this, I’m hoping that <a href="https://meta.wikimedia.org/wiki/Cunningham%27s_Law#:~:text=Cunningham&#39;s%20Law%20states%20%22the%20best,Cunningham%2C%20father%20of%20the%20wiki.">Cunningham’s Law</a>
 will see me through<a href="#fnref5" class="footnote-back">↩︎</a></p></li>
