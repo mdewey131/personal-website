@@ -1,0 +1,2149 @@
+---
+author: "Michael Dewey"
+slug: "making_transition_probs"
+date: "2020-11-13"
+output: blogdown::html_page
+tags:
+  - Rstats
+  - data cleaning
+categories:
+  - projects
+  - Snappa scoreboard
+title: "Building Transition Probabilities From Scratch"
+---
+
+<script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
+
+
+<p>This article is the latest in a series on <a href="https://github.com/mdewey131/Snappa-Scoreboard/wiki/An-Overview-of-SnappaMetrics#what-is-snappa">Snappa</a>.
+For more articles, see <a href="/categories/#posts-list-snappa-scoreboard">here</a></p>
+<!--more-->
+<p>My last <a href="/2020/11/snappa-markov-creation/">article</a> gave a high-level overview of the reasoning and
+methodology behind the Markov chain model which the Snappa Scoreboard uses
+to give win probability estimates to users. That article was intended to strike
+a balance between the formal mathematics behind the model and the intuitive reasoning
+behind the modeling decision, and as a result it was rather light on the R code
+used to obtain each of the objects that I use.</p>
+<p>Today, I thought it would be good to provide more of that technical description,
+both as an attempt at something like <a href="https://en.wikipedia.org/wiki/Rubber_duck_debugging">rubber duck debugging</a>,
+and as a guide to anybody who might need to obtain transition probabilities from a time
+series manually, particularly when trying to subdivide your clean data into different
+matrices as I have done with this project.</p>
+<p>Since I’m explaining a process of data cleaning, I should first provide a primer
+on the raw structure of data to fully explain how cleaning was done.</p>
+<div id="existing-data-structure" class="section level2">
+<h2>Existing Data Structure</h2>
+<p>All Snappa data is stored in a database that updates to the cloud as a game is
+being played. There are 3 main tables which are of importance here<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>:</p>
+<ul>
+<li>A table of <code>events</code> which records the streaming game data, and is the
+basis for the other tables.</li>
+<li>A table on <code>performance</code>, which records player-level data for each game.</li>
+<li>A <code>summary</code> table, which rolls aggregates scores data to the game level.</li>
+</ul>
+<p>Let’s look at a portion of the tables for one game to understand how they come together.
+<style>html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
+}
+
+#iyzdffsoog .gt_table {
+  display: table;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#iyzdffsoog .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#iyzdffsoog .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#iyzdffsoog .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 0;
+  padding-bottom: 4px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#iyzdffsoog .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#iyzdffsoog .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#iyzdffsoog .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#iyzdffsoog .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#iyzdffsoog .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#iyzdffsoog .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#iyzdffsoog .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#iyzdffsoog .gt_group_heading {
+  padding: 8px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#iyzdffsoog .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#iyzdffsoog .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#iyzdffsoog .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#iyzdffsoog .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#iyzdffsoog .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 12px;
+}
+
+#iyzdffsoog .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#iyzdffsoog .gt_first_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+}
+
+#iyzdffsoog .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#iyzdffsoog .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#iyzdffsoog .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#iyzdffsoog .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#iyzdffsoog .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#iyzdffsoog .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding: 4px;
+}
+
+#iyzdffsoog .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#iyzdffsoog .gt_sourcenote {
+  font-size: 90%;
+  padding: 4px;
+}
+
+#iyzdffsoog .gt_left {
+  text-align: left;
+}
+
+#iyzdffsoog .gt_center {
+  text-align: center;
+}
+
+#iyzdffsoog .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#iyzdffsoog .gt_font_normal {
+  font-weight: normal;
+}
+
+#iyzdffsoog .gt_font_bold {
+  font-weight: bold;
+}
+
+#iyzdffsoog .gt_font_italic {
+  font-style: italic;
+}
+
+#iyzdffsoog .gt_super {
+  font-size: 65%;
+}
+
+#iyzdffsoog .gt_footnote_marks {
+  font-style: italic;
+  font-size: 65%;
+}
+</style>
+<div id="iyzdffsoog" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;"><table class="gt_table">
+  <thead class="gt_header">
+    <tr>
+      <th colspan="10" class="gt_heading gt_title gt_font_normal" style>Events</th>
+    </tr>
+    <tr>
+      <th colspan="10" class="gt_heading gt_subtitle gt_font_normal gt_bottom_border" style>First 10 scoring events of game 242</th>
+    </tr>
+  </thead>
+  <thead class="gt_col_headings">
+    <tr>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">shot_number</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">game_number</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">serial_num</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">scored</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">round</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">total</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">offense</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">defensive</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">off_glass</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">kicked_back</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr>
+      <td class="gt_row gt_center">1</td>
+      <td class="gt_row gt_center">242</td>
+      <td class="gt_row gt_center">3</td>
+      <td class="gt_row gt_left">A</td>
+      <td class="gt_row gt_left">1A</td>
+      <td class="gt_row gt_center">1</td>
+      <td class="gt_row gt_center">TRUE</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">FALSE</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">2</td>
+      <td class="gt_row gt_center">242</td>
+      <td class="gt_row gt_center">2</td>
+      <td class="gt_row gt_left">A</td>
+      <td class="gt_row gt_left">1A</td>
+      <td class="gt_row gt_center">1</td>
+      <td class="gt_row gt_center">TRUE</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">FALSE</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">3</td>
+      <td class="gt_row gt_center">242</td>
+      <td class="gt_row gt_center">3</td>
+      <td class="gt_row gt_left">A</td>
+      <td class="gt_row gt_left">2A</td>
+      <td class="gt_row gt_center">1</td>
+      <td class="gt_row gt_center">TRUE</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">FALSE</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">4</td>
+      <td class="gt_row gt_center">242</td>
+      <td class="gt_row gt_center">3</td>
+      <td class="gt_row gt_left">A</td>
+      <td class="gt_row gt_left">3A</td>
+      <td class="gt_row gt_center">1</td>
+      <td class="gt_row gt_center">TRUE</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">FALSE</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">5</td>
+      <td class="gt_row gt_center">242</td>
+      <td class="gt_row gt_center">9</td>
+      <td class="gt_row gt_left">B</td>
+      <td class="gt_row gt_left">3B</td>
+      <td class="gt_row gt_center">1</td>
+      <td class="gt_row gt_center">TRUE</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">FALSE</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">6</td>
+      <td class="gt_row gt_center">242</td>
+      <td class="gt_row gt_center">9</td>
+      <td class="gt_row gt_left">B</td>
+      <td class="gt_row gt_left">5B</td>
+      <td class="gt_row gt_center">1</td>
+      <td class="gt_row gt_center">TRUE</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">FALSE</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">7</td>
+      <td class="gt_row gt_center">242</td>
+      <td class="gt_row gt_center">3</td>
+      <td class="gt_row gt_left">A</td>
+      <td class="gt_row gt_left">6B</td>
+      <td class="gt_row gt_center">2</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">TRUE</td>
+      <td class="gt_row gt_center">TRUE</td>
+      <td class="gt_row gt_center">FALSE</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">8</td>
+      <td class="gt_row gt_center">242</td>
+      <td class="gt_row gt_center">2</td>
+      <td class="gt_row gt_left">A</td>
+      <td class="gt_row gt_left">7A</td>
+      <td class="gt_row gt_center">1</td>
+      <td class="gt_row gt_center">TRUE</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">FALSE</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">9</td>
+      <td class="gt_row gt_center">242</td>
+      <td class="gt_row gt_center">9</td>
+      <td class="gt_row gt_left">B</td>
+      <td class="gt_row gt_left">7B</td>
+      <td class="gt_row gt_center">1</td>
+      <td class="gt_row gt_center">TRUE</td>
+      <td class="gt_row gt_center">TRUE</td>
+      <td class="gt_row gt_center">TRUE</td>
+      <td class="gt_row gt_center">FALSE</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">10</td>
+      <td class="gt_row gt_center">242</td>
+      <td class="gt_row gt_center">9</td>
+      <td class="gt_row gt_left">B</td>
+      <td class="gt_row gt_left">8A</td>
+      <td class="gt_row gt_center">1</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">TRUE</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">FALSE</td>
+    </tr>
+  </tbody>
+  
+  
+</table></div><style>html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
+}
+
+#uhkvdagkgk .gt_table {
+  display: table;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#uhkvdagkgk .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#uhkvdagkgk .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#uhkvdagkgk .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 0;
+  padding-bottom: 4px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#uhkvdagkgk .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#uhkvdagkgk .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#uhkvdagkgk .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#uhkvdagkgk .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#uhkvdagkgk .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#uhkvdagkgk .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#uhkvdagkgk .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#uhkvdagkgk .gt_group_heading {
+  padding: 8px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#uhkvdagkgk .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#uhkvdagkgk .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#uhkvdagkgk .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#uhkvdagkgk .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#uhkvdagkgk .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 12px;
+}
+
+#uhkvdagkgk .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#uhkvdagkgk .gt_first_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+}
+
+#uhkvdagkgk .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#uhkvdagkgk .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#uhkvdagkgk .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#uhkvdagkgk .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#uhkvdagkgk .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#uhkvdagkgk .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding: 4px;
+}
+
+#uhkvdagkgk .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#uhkvdagkgk .gt_sourcenote {
+  font-size: 90%;
+  padding: 4px;
+}
+
+#uhkvdagkgk .gt_left {
+  text-align: left;
+}
+
+#uhkvdagkgk .gt_center {
+  text-align: center;
+}
+
+#uhkvdagkgk .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#uhkvdagkgk .gt_font_normal {
+  font-weight: normal;
+}
+
+#uhkvdagkgk .gt_font_bold {
+  font-weight: bold;
+}
+
+#uhkvdagkgk .gt_font_italic {
+  font-style: italic;
+}
+
+#uhkvdagkgk .gt_super {
+  font-size: 65%;
+}
+
+#uhkvdagkgk .gt_footnote_marks {
+  font-style: italic;
+  font-size: 65%;
+}
+</style>
+<div id="uhkvdagkgk" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;"><table class="gt_table">
+  <thead class="gt_header">
+    <tr>
+      <th colspan="15" class="gt_heading gt_title gt_font_normal" style>Performance</th>
+    </tr>
+    <tr>
+      <th colspan="15" class="gt_heading gt_subtitle gt_font_normal gt_bottom_border" style>A complete table entry for game 242</th>
+    </tr>
+  </thead>
+  <thead class="gt_col_headings">
+    <tr>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">game_number</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">serial_number</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">side</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1">rounds</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">point_total</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">single_points</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">double_points</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">sink_points</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">four_plus_points</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">defensive_return_points</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">off_glass_points</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1">production_per_round</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1">offensive_round_production</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1">defensive_round_production</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_right" rowspan="1" colspan="1">batting_average</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr>
+      <td class="gt_row gt_center">242</td>
+      <td class="gt_row gt_center">2</td>
+      <td class="gt_row gt_left">A</td>
+      <td class="gt_row gt_right">26</td>
+      <td class="gt_row gt_center">7</td>
+      <td class="gt_row gt_center">7</td>
+      <td class="gt_row gt_center">0</td>
+      <td class="gt_row gt_center">0</td>
+      <td class="gt_row gt_center">0</td>
+      <td class="gt_row gt_center">0</td>
+      <td class="gt_row gt_center">0</td>
+      <td class="gt_row gt_right">0.2692308</td>
+      <td class="gt_row gt_right">0.2692308</td>
+      <td class="gt_row gt_right">0.0000000</td>
+      <td class="gt_row gt_right">0.2692308</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">242</td>
+      <td class="gt_row gt_center">3</td>
+      <td class="gt_row gt_left">A</td>
+      <td class="gt_row gt_right">26</td>
+      <td class="gt_row gt_center">13</td>
+      <td class="gt_row gt_center">11</td>
+      <td class="gt_row gt_center">1</td>
+      <td class="gt_row gt_center">0</td>
+      <td class="gt_row gt_center">0</td>
+      <td class="gt_row gt_center">3</td>
+      <td class="gt_row gt_center">2</td>
+      <td class="gt_row gt_right">0.5000000</td>
+      <td class="gt_row gt_right">0.3846154</td>
+      <td class="gt_row gt_right">0.1153846</td>
+      <td class="gt_row gt_right">0.3846154</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">242</td>
+      <td class="gt_row gt_center">9</td>
+      <td class="gt_row gt_left">B</td>
+      <td class="gt_row gt_right">25</td>
+      <td class="gt_row gt_center">17</td>
+      <td class="gt_row gt_center">15</td>
+      <td class="gt_row gt_center">1</td>
+      <td class="gt_row gt_center">0</td>
+      <td class="gt_row gt_center">0</td>
+      <td class="gt_row gt_center">5</td>
+      <td class="gt_row gt_center">3</td>
+      <td class="gt_row gt_right">0.6800000</td>
+      <td class="gt_row gt_right">0.4800000</td>
+      <td class="gt_row gt_right">0.2000000</td>
+      <td class="gt_row gt_right">0.4800000</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">242</td>
+      <td class="gt_row gt_center">10</td>
+      <td class="gt_row gt_left">B</td>
+      <td class="gt_row gt_right">25</td>
+      <td class="gt_row gt_center">5</td>
+      <td class="gt_row gt_center">5</td>
+      <td class="gt_row gt_center">0</td>
+      <td class="gt_row gt_center">0</td>
+      <td class="gt_row gt_center">0</td>
+      <td class="gt_row gt_center">0</td>
+      <td class="gt_row gt_center">0</td>
+      <td class="gt_row gt_right">0.2000000</td>
+      <td class="gt_row gt_right">0.2000000</td>
+      <td class="gt_row gt_right">0.0000000</td>
+      <td class="gt_row gt_right">0.2000000</td>
+    </tr>
+  </tbody>
+  
+  
+</table></div><style>html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
+}
+
+#ztkxyzhrng .gt_table {
+  display: table;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#ztkxyzhrng .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#ztkxyzhrng .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#ztkxyzhrng .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 0;
+  padding-bottom: 4px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#ztkxyzhrng .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ztkxyzhrng .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#ztkxyzhrng .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#ztkxyzhrng .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#ztkxyzhrng .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#ztkxyzhrng .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#ztkxyzhrng .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#ztkxyzhrng .gt_group_heading {
+  padding: 8px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#ztkxyzhrng .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#ztkxyzhrng .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#ztkxyzhrng .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#ztkxyzhrng .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#ztkxyzhrng .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 12px;
+}
+
+#ztkxyzhrng .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ztkxyzhrng .gt_first_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+}
+
+#ztkxyzhrng .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ztkxyzhrng .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#ztkxyzhrng .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#ztkxyzhrng .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ztkxyzhrng .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#ztkxyzhrng .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding: 4px;
+}
+
+#ztkxyzhrng .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#ztkxyzhrng .gt_sourcenote {
+  font-size: 90%;
+  padding: 4px;
+}
+
+#ztkxyzhrng .gt_left {
+  text-align: left;
+}
+
+#ztkxyzhrng .gt_center {
+  text-align: center;
+}
+
+#ztkxyzhrng .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#ztkxyzhrng .gt_font_normal {
+  font-weight: normal;
+}
+
+#ztkxyzhrng .gt_font_bold {
+  font-weight: bold;
+}
+
+#ztkxyzhrng .gt_font_italic {
+  font-style: italic;
+}
+
+#ztkxyzhrng .gt_super {
+  font-size: 65%;
+}
+
+#ztkxyzhrng .gt_footnote_marks {
+  font-style: italic;
+  font-size: 65%;
+}
+</style>
+<div id="ztkxyzhrng" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;"><table class="gt_table">
+  <thead class="gt_header">
+    <tr>
+      <th colspan="15" class="gt_heading gt_title gt_font_normal" style>Summary</th>
+    </tr>
+    <tr>
+      <th colspan="15" class="gt_heading gt_subtitle gt_font_normal gt_bottom_border" style>The single row for game 242 in the table</th>
+    </tr>
+  </thead>
+  <thead class="gt_col_headings">
+    <tr>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">game_number</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">snappaneers</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">night_game</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">total_a</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">total_b</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">total_rounds</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">game_single_points</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">game_double_points</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">game_sinks</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">game_four_plus</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">game_defensive_return</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">game_off_glass</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">finished_game</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">final_shot</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">location</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr>
+      <td class="gt_row gt_center">242</td>
+      <td class="gt_row gt_center">4</td>
+      <td class="gt_row gt_center">FALSE</td>
+      <td class="gt_row gt_center">20</td>
+      <td class="gt_row gt_center">22</td>
+      <td class="gt_row gt_center">51</td>
+      <td class="gt_row gt_center">38</td>
+      <td class="gt_row gt_center">2</td>
+      <td class="gt_row gt_center">0</td>
+      <td class="gt_row gt_center">0</td>
+      <td class="gt_row gt_center">8</td>
+      <td class="gt_row gt_center">5</td>
+      <td class="gt_row gt_center">TRUE</td>
+      <td class="gt_row gt_left">1A</td>
+      <td class="gt_row gt_left">Snappa Home Base</td>
+    </tr>
+  </tbody>
+  
+  
+</table></div></p>
+<p>As you can see, <code>events</code> records everything that we can, given the user
+input, about the score which has just been recorded. The rows of the table are
+grouped by the <code>serial_number</code> of the player, and it is those sums and shot
+percentages which make the data for <code>performance</code>. All of the players information
+is summed up in <code>summary</code>, and everything is linked together by the game’s
+<code>game_number</code>. You may also notice that not <em>everything</em> is an aggregation of
+<code>scoring_events</code>. There is some additional information added to <code>summary</code>,
+for example the game’s <code>location</code>, which does not come from <code>events</code>. Each table
+expresses a slightly different level of aggregation, and so there are naturally some
+variables which are game-level attributes and therefore do not make their way into
+<code>events</code>.</p>
+</div>
+<div id="specifying-our-target-output" class="section level2">
+<h2>Specifying our Target Output</h2>
+<p>In my experience, it’s really helpful to spend some time and plan out the final output of the data cleaning process.</p>
+<ol style="list-style-type: decimal">
+<li>How will the output(s) actually be used?</li>
+<li>What does (1) say about what the output should look like?</li>
+<li>How can you optimize (2) once you understand (1)?</li>
+</ol>
+<p>In our case, the answer to (1) is that we will be plugging transition probabilities for a given team into a simulation function. In fact, we will have 4 such transitions per team:</p>
+<ul>
+<li>A 51x51 “scores” transition matrix for offense</li>
+<li>A 51x51 “scores” transition matrix for defense</li>
+<li>An 8x8 “states” transition matrix for offense</li>
+<li>An 8x8 “states” transition matrix for defense</li>
+</ul>
+<p>For more clarification on why it’s the case that we need 4 matrices, see <a href="/2020/11/snappa-markov-creation#turning-points-into-wins-theoretically-and-practically">here</a>
+Each of these matrices can be relatively time-consuming to calculate, so we don’t want the application finding each of these matrices every time that a game starts. Instead, the app imports a list with each matrix <strong>for every team that the database has ever observed</strong>. Doing it in this way significantly alleviates problems related to putting a somewhat code-intensive cleaning process in the middle of a <code>Shiny</code> application<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>.</p>
+<p>My way of working within this framework was to aim for a named list that I call
+<code>transitions_list</code>. Each element of the list is indexed by a unique name for the
+team which is based off of the <code>serial_number</code> of all the team members. Within
+each list element, there are two other lists - one for “scores” and one for “states”-
+and each of these lists has one matrix for “offense” and one for “defense”. For example,
+if players with the <code>serial_number</code>s 2 and 9 are the only two players on the same team,
+the application would look for <code>transitions_list[["(2, 9)"]]</code>, but if the team
+had players 2, 3, and 9 it would look for <code>transitions_list[["(2, 3, 9)"]]</code>.
+Once the app is looking at the correct <code>TEAM_NAME</code>, it retrieves</p>
+<ul>
+<li><code>transitions_list[[TEAM_NAME]]$scores$offense</code></li>
+<li><code>transitions_list[[TEAM_NAME]]$scores$defense</code></li>
+<li><code>transitions_list[[TEAM_NAME]]$states$offense</code></li>
+<li><code>transitions_list[[TEAM_NAME]]$states$defense</code></li>
+</ul>
+<p>Hence, the functions that I write to handle data manipulation are all done with
+the aim of obtaining outputs that follow this format.</p>
+</div>
+<div id="preliminary-tables" class="section level2">
+<h2>Preliminary Tables</h2>
+<p>I will eventually obtain a list of transition probabilities for all teams by using
+the <code>pmap</code> function in <code>purrr</code>. First, I create a table which contains all teams
+and the games in which they’ve played by using <code>pivot_wider</code> along with <code>performance</code></p>
+<pre class="r"><code>library(tidyverse)
+team_combos = performance %&gt;% 
+    group_by(game_number, side) %&gt;%
+    arrange(serial_number) %&gt;%
+    mutate(position = row_number()) %&gt;%
+    pivot_wider(id_cols = c(game_number, side), names_from = position, 
+                values_from = serial_number)
+
+# For demonstration
+team_combos %&gt;%
+  arrange(desc(game_number)) %&gt;% 
+  head(15) %&gt;%
+  ungroup() %&gt;%
+  gt() %&gt;%
+    tab_header(title = &quot;Team Combinations by Game Number and Side&quot;)</code></pre>
+<p><style>html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
+}
+
+#ejubedatbo .gt_table {
+  display: table;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#ejubedatbo .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#ejubedatbo .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#ejubedatbo .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 0;
+  padding-bottom: 4px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#ejubedatbo .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ejubedatbo .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#ejubedatbo .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#ejubedatbo .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#ejubedatbo .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#ejubedatbo .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#ejubedatbo .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#ejubedatbo .gt_group_heading {
+  padding: 8px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#ejubedatbo .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#ejubedatbo .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#ejubedatbo .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#ejubedatbo .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#ejubedatbo .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 12px;
+}
+
+#ejubedatbo .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ejubedatbo .gt_first_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+}
+
+#ejubedatbo .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#ejubedatbo .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#ejubedatbo .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#ejubedatbo .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#ejubedatbo .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#ejubedatbo .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding: 4px;
+}
+
+#ejubedatbo .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#ejubedatbo .gt_sourcenote {
+  font-size: 90%;
+  padding: 4px;
+}
+
+#ejubedatbo .gt_left {
+  text-align: left;
+}
+
+#ejubedatbo .gt_center {
+  text-align: center;
+}
+
+#ejubedatbo .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#ejubedatbo .gt_font_normal {
+  font-weight: normal;
+}
+
+#ejubedatbo .gt_font_bold {
+  font-weight: bold;
+}
+
+#ejubedatbo .gt_font_italic {
+  font-style: italic;
+}
+
+#ejubedatbo .gt_super {
+  font-size: 65%;
+}
+
+#ejubedatbo .gt_footnote_marks {
+  font-style: italic;
+  font-size: 65%;
+}
+</style>
+<div id="ejubedatbo" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;"><table class="gt_table">
+  <thead class="gt_header">
+    <tr>
+      <th colspan="6" class="gt_heading gt_title gt_font_normal" style>Team Combinations by Game Number and Side</th>
+    </tr>
+    <tr>
+      <th colspan="6" class="gt_heading gt_subtitle gt_font_normal gt_bottom_border" style></th>
+    </tr>
+  </thead>
+  <thead class="gt_col_headings">
+    <tr>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">game_number</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">side</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">1</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">2</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">3</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_center" rowspan="1" colspan="1">4</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr>
+      <td class="gt_row gt_center">256</td>
+      <td class="gt_row gt_left">B</td>
+      <td class="gt_row gt_center">2</td>
+      <td class="gt_row gt_center">9</td>
+      <td class="gt_row gt_center">NA</td>
+      <td class="gt_row gt_center">NA</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">256</td>
+      <td class="gt_row gt_left">A</td>
+      <td class="gt_row gt_center">3</td>
+      <td class="gt_row gt_center">22</td>
+      <td class="gt_row gt_center">NA</td>
+      <td class="gt_row gt_center">NA</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">255</td>
+      <td class="gt_row gt_left">A</td>
+      <td class="gt_row gt_center">2</td>
+      <td class="gt_row gt_center">3</td>
+      <td class="gt_row gt_center">NA</td>
+      <td class="gt_row gt_center">NA</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">255</td>
+      <td class="gt_row gt_left">B</td>
+      <td class="gt_row gt_center">9</td>
+      <td class="gt_row gt_center">22</td>
+      <td class="gt_row gt_center">NA</td>
+      <td class="gt_row gt_center">NA</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">254</td>
+      <td class="gt_row gt_left">A</td>
+      <td class="gt_row gt_center">2</td>
+      <td class="gt_row gt_center">3</td>
+      <td class="gt_row gt_center">NA</td>
+      <td class="gt_row gt_center">NA</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">254</td>
+      <td class="gt_row gt_left">B</td>
+      <td class="gt_row gt_center">9</td>
+      <td class="gt_row gt_center">22</td>
+      <td class="gt_row gt_center">NA</td>
+      <td class="gt_row gt_center">NA</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">253</td>
+      <td class="gt_row gt_left">A</td>
+      <td class="gt_row gt_center">2</td>
+      <td class="gt_row gt_center">22</td>
+      <td class="gt_row gt_center">NA</td>
+      <td class="gt_row gt_center">NA</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">253</td>
+      <td class="gt_row gt_left">B</td>
+      <td class="gt_row gt_center">3</td>
+      <td class="gt_row gt_center">9</td>
+      <td class="gt_row gt_center">NA</td>
+      <td class="gt_row gt_center">NA</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">252</td>
+      <td class="gt_row gt_left">B</td>
+      <td class="gt_row gt_center">2</td>
+      <td class="gt_row gt_center">3</td>
+      <td class="gt_row gt_center">NA</td>
+      <td class="gt_row gt_center">NA</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">252</td>
+      <td class="gt_row gt_left">A</td>
+      <td class="gt_row gt_center">9</td>
+      <td class="gt_row gt_center">22</td>
+      <td class="gt_row gt_center">NA</td>
+      <td class="gt_row gt_center">NA</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">251</td>
+      <td class="gt_row gt_left">B</td>
+      <td class="gt_row gt_center">2</td>
+      <td class="gt_row gt_center">3</td>
+      <td class="gt_row gt_center">NA</td>
+      <td class="gt_row gt_center">NA</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">251</td>
+      <td class="gt_row gt_left">A</td>
+      <td class="gt_row gt_center">9</td>
+      <td class="gt_row gt_center">22</td>
+      <td class="gt_row gt_center">NA</td>
+      <td class="gt_row gt_center">NA</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">250</td>
+      <td class="gt_row gt_left">B</td>
+      <td class="gt_row gt_center">2</td>
+      <td class="gt_row gt_center">9</td>
+      <td class="gt_row gt_center">NA</td>
+      <td class="gt_row gt_center">NA</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">250</td>
+      <td class="gt_row gt_left">A</td>
+      <td class="gt_row gt_center">3</td>
+      <td class="gt_row gt_center">22</td>
+      <td class="gt_row gt_center">NA</td>
+      <td class="gt_row gt_center">NA</td>
+    </tr>
+    <tr>
+      <td class="gt_row gt_center">249</td>
+      <td class="gt_row gt_left">B</td>
+      <td class="gt_row gt_center">2</td>
+      <td class="gt_row gt_center">9</td>
+      <td class="gt_row gt_center">NA</td>
+      <td class="gt_row gt_center">NA</td>
+    </tr>
+  </tbody>
+  
+  
+</table></div>
+Notice how the players’ <code>serial_number</code> translates into a way of uniquely identifying each team. One of the central tenets of the modeling that I’m performing is that I have no way of estimating how important each individual teammate is. I only understand teams by understanding <strong>unique</strong> combinations of players. Hence, each of these NA values are actually important because it is the sequence of <code>1</code>, <code>2</code>, <code>3</code>, and <code>4</code> which uniquely determine a team. For that reason, all functions that handle this data expect 4 values for a team, with <code>NA</code> being the default for the last two. However, we make these explicit <code>NA</code> values implicit when it comes time to create the vector which retrieves the proper team from <code>transitions_list</code>.</p>
+<p>For each team, we need to obtain a list of games in which we have seen that unique combination of players. I achieve that by creating a <code>filter</code> expression for all four numbered columns on <code>team_combos</code> as follows. Suppose we’re again looking at team “(2, 9)” from before. This team would correspond to <code>1</code> = 2, <code>2</code> = 9, <code>3</code> = <code>NA</code>,
+<code>4</code> = <code>NA</code><a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>. Also the use of column names whose values are numbers is really not great practice, but it does have the upshot of allowing me to write the <code>filter_expression</code> using <code>imap</code>.</p>
+<pre class="r"><code>team_vector = c(2, 9, NA, NA)
+filter_statements = team_vector %&gt;%
+  imap(function(player, index){
+    if(!is.na(player)){
+      str_c(&quot;`&quot;, index, &quot;` == &quot;, player)
+    } else { 
+      str_c(&quot;is.na(`&quot;, index, &quot;`) &quot;)
+      }
+  })
+filter_expression = 
+  rlang::parse_exprs(
+    paste0(filter_statements)
+)
+
+game_side_pair = team_combos %&gt;%
+  filter(!!!filter_expression) %&gt;%
+  select(game_number, side)</code></pre>
+<p><code>game_side_pair</code> tells us what games our chosen team is in, and also what side they were in that game. This may not seem too important, but it actually matters quite a bit. Ultimately we want to make sure that we are correctly identifying how many shots a team had in each game (read: how many opportunities they had to score), which forms the basis of the denominator of the maximum likelihood estimator of transition probabilities. For example, in games that team B wins, <code>NUMBER A</code> is the final round, which would mean that A got <code>NUMBER</code> shots on offense,
+while B got <code>NUMBER - 1</code>! That same dynamic holds in reverse for defense.</p>
+<p>In moving towards that final total shots number, I first figure out how many shots are in each round. When games are unbalanced, like a 2 vs 3 scenario, the team with 2 people still shoots 3 times. This means that we have to know the number of players on the opposing team to also know the number of shots which a team had in a game. Each team’s shots is equal to the maximum team size in that game.</p>
+<pre class="r"><code>game_shots_pair = performance %&gt;%
+  filter(game_number %in% game_side_pair$game_number) %&gt;%
+  group_by(game_number, side) %&gt;%
+  summarize(team_size = n(), .groups = &quot;drop_last&quot;) %&gt;%
+  summarize(shots = max(team_size), .groups = &quot;drop_last&quot;)</code></pre>
+<p>Next is to obtain the number of rounds that each team played in each game. In <code>summary</code>, there is a variable called <code>total_rounds</code> which tracks the total number of rounds in a game (e.g. if the game had ended on round 1A, this value would be 1, and if the game ended on 12B, this would be 24). One can verify that the following <code>mutate</code> should provide answers to the side-specific question of the number of rounds taken.</p>
+<pre class="r"><code>total_rounds = game_side_pair %&gt;%
+  left_join(summary %&gt;%
+              select(game_number, total_rounds),
+            by = &quot;game_number&quot;) %&gt;%
+  mutate(offense_rounds = ifelse(side == &quot;A&quot;, ceiling(total_rounds / 2), floor(total_rounds / 2)),
+         defense_rounds = ifelse(side == &quot;A&quot;, floor(total_rounds / 2), ceiling(total_rounds / 2))) %&gt;%
+  ungroup() %&gt;%
+  select(game_number, offense_rounds, defense_rounds)
+
+total_rounds</code></pre>
+<pre><code>## # A tibble: 41 x 3
+##    game_number offense_rounds defense_rounds
+##          &lt;int&gt;          &lt;dbl&gt;          &lt;dbl&gt;
+##  1          93             21             22
+##  2          38             24             25
+##  3          66             24             25
+##  4          46             27             26
+##  5          70             26             25
+##  6           3             14             14
+##  7          81             26             26
+##  8          82             24             24
+##  9          63             27             28
+## 10          86             25             25
+## # ... with 31 more rows</code></pre>
+<p>Finally, I also create a version of the <code>events</code> table which cuts away the clutter that we don’t need, and provides the manipulations that would be needed for all the calculations. This is the object from which we will be most directly obtaining the counts</p>
+<pre class="r"><code>events_simplified = events %&gt;% 
+    arrange(game_number, shot_number) %&gt;%
+    group_by(game_number, round, scored) %&gt;%
+    mutate(shot_order = row_number()) %&gt;% 
+    select(game_number, scored, total, round, shot_order) %&gt;%
+    filter(game_number %in% game_side_pair$game_number) %&gt;%
+    left_join(game_side_pair, by = &quot;game_number&quot;) %&gt;%
+    filter(scored == side) %&gt;%
+    mutate(off_def = case_when(str_extract(round, &quot;[A-Z]&quot;) == side ~ &quot;offense&quot;,
+                            str_extract(round, &quot;[A-Z]&quot;) != side ~ &quot;defense&quot;),
+           round_num = as.integer(str_sub(round, 1, -2))
+           )</code></pre>
+</div>
+<div id="estimating-the-probabilities---valid-constructs" class="section level2">
+<h2>Estimating the Probabilities - Valid Constructs</h2>
+<p>With these tables in place, we’re ready to begin forming the data set used to make transition probabilities. First, an overview on what that data set should look like. Since transition matrices are all about recording the number of times that a transition occurs, we will be using a vector of “running scores”, i.e., the cumulative sum of points for a given team in a game. Those cumulative points should be calculated over a data set which has been properly ordered between offense and defense <em>for that team</em>. For example, if a team was “A” in a game, then their order should be offense -&gt; defense. If a team was “B”, it should be reversed.</p>
+<p>Having said this, we arrive at the largest threat to validity for this entire method: the order in which shots are observed during a round. The scoreboard does not require players to record non-scoring events. Intuitively, this choice is made to improve the rate of play and minimize UI fatigue. In practice, however, it means that I have no way of systematically knowing whether the first point scored in a round was on the first shot. In fact, the only cases where I can be sure that the ordering is correct are cases where everyone on the team scores on that round. For all the rest, I am left to do the best I can. It’s worth thinking about the effect that this has on the model. At the beginning of the round, let team A have two shots and <code>a</code> points, and suppose that one point is scored during the round. If that point was scored on the first shot, then the transitions matrix should record, in order:</p>
+<ol style="list-style-type: decimal">
+<li>A transition from <code>a</code> to <code>a + 1</code></li>
+<li>A transition from <code>a + 1</code> to <code>a + 1</code></li>
+</ol>
+<p>In fact, this is what the transitions matrix would report too. Having seen one entry in <code>events</code> for this round, the script will give that scoring event the first position, and fill in the “implicit” 0 at the second. This becomes a threat to validity if the point was scored with the second shooter, since in that case the progression <strong>should</strong> be:</p>
+<ol style="list-style-type: decimal">
+<li>A transition from <code>a</code> to <code>a</code></li>
+<li>A transition from <code>a</code> to <code>a + 1</code></li>
+</ol>
+<p>However, the script would still perform the first set of steps, not the second, because it does not know to put the scoring event in the second position. This has the effect of “shifting” counts up and down. Notice through this example that both sets of steps include a transition from <code>a</code> to <code>a +  1</code>, but they put the “stagnant” transition in the wrong row and wrong column. This means that these counts are being shifted from one multinomial distribution to another.</p>
+<p>There is no way, given our current desire to limit the number of times that someone has to walk over to the app, for us to fix this problem with certainty, but I think there are quite plausible reasons to believe that this error does not completely negate my methodology:</p>
+<ol style="list-style-type: decimal">
+<li>Any non-zero score <code>a</code> can be a “donor” or a recipient, which implies that there is no reason to believe that this biases our results for those probability estimates, though it should certainly increase our uncertainty about the point estimates. This assumption becomes more tenuous to maintain as scores begin to fall outside of the conventional range, however, since we have a paucity of those events and each shift matters more as a result.</li>
+<li>Because our real object of interest in this method is win probabilities, we can live with a little more uncertainty around the probability estimates. Whether a team’s simulated score progression sees them stalling out from 13 to 13 or 14 to 14 is of minor concern to us.
+<!-- This isn't correct. Think about this more. The upshot of randomization is not that it improves your
+chances of getting any one particular value correct. It's that it reduces the variance of your error term.
+3. There may be ways to get around this issue, or to introduce some additional constructs to alleviate the issue. For example, if I were to instead randomly assign a position to each scoring event, that may have the effect of lowering the uncertainty introduced. In 2v2 games, I'd anticipate this would have no effect because my naive estimate of the chance of being correct is 50-50 regardless. In games with three players, however, this would improve the chance that I'm right about a round where one point was scored from $\frac{1}{3}$ to $\frac{1}{2}$.
+-->
+Having recognized and discussed this issue, we can now move on to the construction of the transitions matrix.</li>
+</ol>
+</div>
+<div id="constructing-the-matrix" class="section level2">
+<h2>Constructing the Matrix</h2>
+<p>The matrix is constructed game-by-game: I produce two outputs whose values are the counts of the transitions in each game for each half (offense or defense). The matrices for each game are added with the matrices for all other games, and then the row totals are used to divide the elements of the row. That is, at row <code>r</code>, the total represents the number of times that a team has been observed at score or state <code>r-1</code><a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>. For a given <code>game</code>, then, I run the following:</p>
+<pre class="r"><code>rounds_in_game = total_rounds %&gt;%
+      filter(game_number == game) %&gt;%
+      select(offense_rounds, defense_rounds)
+    
+shots_per_round = game_shots_pair %&gt;%
+      filter(game_number == game) %&gt;%
+      pull(shots)
+  
+filtered_game = events_simplified %&gt;%
+      filter(game_number == game)
+    
+    # Keeping these two together before completing
+    # proved to be too complicated for the factors
+    # I needed to specify per side. The next steps 
+    # make that
+    # easier, but are admittedly kind of ugly
+    
+offense = filtered_game %&gt;% 
+      filter(off_def == &quot;offense&quot;) %&gt;%
+      ungroup() %&gt;%
+      select(round_num, shot_order, off_def, total)
+defense = filtered_game %&gt;%
+      filter(off_def == &quot;defense&quot;) %&gt;%
+      ungroup() %&gt;%
+      select(round_num, shot_order, off_def, total)
+    
+offense_rounds = rounds_in_game$offense_rounds
+defense_rounds = rounds_in_game$defense_rounds
+    
+offense$round_num = factor(
+        offense$round_num,
+        levels = seq(1, offense_rounds))
+offense$shot_order =
+      factor(
+        offense$shot_order,
+        levels = seq(1, shots_per_round))  
+    
+defense$round_num =
+      factor(
+        defense$round_num,
+        levels = seq(1, defense_rounds))
+defense$shot_order =
+      factor(
+        defense$shot_order,
+        levels = seq(1, shots_per_round)) 
+
+
+expanded_offense = offense %&gt;%
+      complete(
+        expand(offense,
+               round_num,
+               shot_order),
+        fill = list(total = 0,
+                    off_def = &quot;offense&quot;))
+
+expanded_defense = defense %&gt;%
+      complete(
+        expand(defense,
+               round_num,
+               shot_order),
+        fill = list(total = 0,
+                    off_def = &quot;defense&quot;))
+
+expanded_game = bind_rows(expanded_offense,
+                              expanded_defense)
+
+expanded_game</code></pre>
+<pre><code>## # A tibble: 86 x 4
+##    round_num shot_order off_def total
+##    &lt;fct&gt;     &lt;fct&gt;      &lt;chr&gt;   &lt;dbl&gt;
+##  1 1         1          offense     1
+##  2 1         2          offense     0
+##  3 2         1          offense     0
+##  4 2         2          offense     0
+##  5 3         1          offense     1
+##  6 3         2          offense     0
+##  7 4         1          offense     0
+##  8 4         2          offense     0
+##  9 5         1          offense     0
+## 10 5         2          offense     0
+## # ... with 76 more rows</code></pre>
+<p>The table <code>expanded_game</code> has all of the pertinent information for a team’s performance
+in a given game. However, it would be incorrect to calculate transition probabilities at this point
+because the data set is unordered. We can recover ordering by remembering that the switch between
+offense and defense in a round is predictable once we know the team’s side.</p>
+<pre class="r"><code>team = game_side_pair %&gt;%
+  filter(game_number == game) %&gt;%
+  pull(side)
+
+if (team == &quot;A&quot;){
+  expanded_game = expanded_game %&gt;% 
+        arrange(round_num, desc(off_def), shot_order) %&gt;%
+        select(off_def, total)
+  
+  expanded_game = bind_rows(tibble(off_def = &quot;offense&quot;, total = 0),
+                            expanded_game)
+} else {
+  expanded_game = expanded_game %&gt;% 
+        arrange(round_num, off_def, shot_order) %&gt;%
+        select(off_def, total)
+  
+  expanded_game = bind_rows(tibble(off_def = &quot;defense&quot;, total = 0),
+                            expanded_game)
+}
+
+score_side_table = expanded_game %&gt;%
+                        summarize(running_score = cumsum(total),
+                                  off_def = off_def,
+                                  .groups = &quot;drop&quot;)</code></pre>
+<p>In each case, notice that I bind a new row with a score of 0 at the very beginning of the expanded
+game. This is done to set the initial condition. If a team scores in round 1A on their very first shot
+(or paddle), then that should be recorded as a transition from 0 to 1. That line ensures this is the case.</p>
+<p>Finally, we take this object and simplify it into a table with two columns called <code>score_side_table</code>. This is the “clean” version of our data. From here, calculating transition counts is straightforward. Here, I’ll demonstrate in the case that we’re looking at “scores”.</p>
+<pre class="r"><code>offense_matrix = matrix(data = 0, nrow = 51, ncol = 51)
+
+defense_matrix = matrix(data = 0, nrow = 51, ncol = 51)
+
+# Create a matrix that will be used for our transition counts
+for (i in 2:length(score_side_table$running_score)){
+  old_score = score_side_table$running_score[i - 1]
+  new_score = score_side_table$running_score[i]
+  
+  if (score_side_table$off_def[i] == &quot;offense&quot;){
+    offense_matrix[old_score + 1, new_score + 1] =
+      offense_matrix[old_score+ 1, new_score + 1] + 1
+  } else { 
+    defense_matrix[old_score + 1, new_score + 1] = 
+            defense_matrix[old_score + 1, new_score + 1] + 1
+  }
+}</code></pre>
+<p>The two matrices which are created, one for offense and one for defense, are then added together with the counts
+for every game in which that team has played. In fact, I <code>map</code> the sequence of functions above over the games in which that team has played. This provides us with objects that I call the <code>transition_counts</code>.</p>
+<p>Next, we put it all together.</p>
+<pre class="r"><code>row_totals = map_dbl(seq(1, matrix_rank), function(number) { 
+                                 transition_counts_offense[number,] %&gt;% sum()
+                                 }
+                       )
+
+transition_probs_offense = transition_counts_offense / row_totals</code></pre>
+<p>Overall, we do these steps 4 times: one for each matrix that is needed in the simulation. The app stores these matrices for every unique team combination which we have seen in Snappa history, and runs simulations by drawing scores from these matrices.</p>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p>I hope that you have enjoyed reading this post. For the practitioner, I hope that it provides insight into some ways that you can accomplish data cleaning goals while creating statistical objects that could not be easily accomplished with a package. For the more skilled practitioner than me, I’d love to hear your feedback on this process</p>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>Note: although
+I don’t believe it is a pressing issue for our small little application, I will not
+be using the actual table names or their column names from our database for
+<a href="https://xkcd.com/327/">Robert</a> reasons. Paranoia is not usually a good thing,
+but I dare not tempt the internet when it comes to matters of security<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>This is particularly true because we’re using the free version of <a href="https://www.shinyapps.io/">shinyapps</a> to run our application, so ensuring a decent UX often means getting things to run as quickly as we can.<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>Note that we have to specify all of these for the reasons mentioned before: each team pairing refers to the unique combination of players, meaning (2,9) is different from (2,3,9)<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="fn4"><p>This is a technical consideration which is true because we need a row and column for zero points, and we cannot have a 0th row from R’s perspective<a href="#fnref4" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>

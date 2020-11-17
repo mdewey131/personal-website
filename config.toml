@@ -133,7 +133,7 @@ ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_cache$", "\\.knit\\.md$", "\\.utf8\
 
   # Syntax highlighter, possible choice between: "highlight.js" (recommanded) and "prism.js" (experimental)
   # You can comment it to disable syntax highlighting
-  syntaxHighlighter = "highlight.js"
+  syntaxHighlighter = "prism.js"
 
   # Hide sidebar on all article page to let article take full width to improve reading, and enjoy wide images and cover images. (true: enable, false: disable)
   clearReading = true
@@ -203,8 +203,12 @@ ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_cache$", "\\.knit\\.md$", "\\.utf8\
 
   # Custom JS. Put here your custom JS files. They are loaded after the theme JS;
   # they have to be referred from static root. Example
-  # [[params.customJS]]
-  #   src = "js/myscript.js"
+  
+   [[params.customJS]]
+   # This creates syntax highlighting for R
+     src = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/r.min.js"
+  
+  
 
   # Sharing options
   # Comment and uncomment to enable or disable sharing options
