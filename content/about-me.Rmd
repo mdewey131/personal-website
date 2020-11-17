@@ -1,5 +1,5 @@
 ---
-title: "About Me"
+title: "Hi, I'm Michael"
 comments:       false
 showMeta:       false
 showActions:    false
@@ -8,9 +8,6 @@ output:
   blogdown::html_page
 slug: "about-me"
 ---
-
-# Hi, I'm Michael
-
   Thanks for visiting my site! I'm a freelancer, currently open to full-time work, 
 based in Los Angeles. I'm originally from
 Santa Clarita, California, where I lived for the entirety of my childhood. 

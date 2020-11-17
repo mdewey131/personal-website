@@ -9,18 +9,20 @@ tags:
 categories:
   - projects
   - Snappa scoreboard
+thumbnailImage: "/img/transition_probabilities.JPG"
+thumbnailImagePosition: left
+coverImage: "/img/transition_probabilities.JPG"
+coverCaption: "A portion of the score transition probabilities on offense for myself and my most common Snappa partner. The upper triangular structure comes from the fact that you cannot score negative points."
+coverMeta: out
+metaAlignment: center
 title: "Building Transition Probabilities From Scratch"
 ---
-This article is the latest in a series on [Snappa](https://github.com/mdewey131/Snappa-Scoreboard/wiki/An-Overview-of-SnappaMetrics#what-is-snappa).
-For more articles, see [here](/categories/#posts-list-snappa-scoreboard)
-
-<br>
-<br>
-<br>
-
 My last [article](/2020/11/snappa-markov-creation/) gave a high-level overview of the reasoning and 
 methodology behind the Markov chain model which the Snappa Scoreboard uses
-to give win probability estimates to users. That article was intended to strike 
+to give win probability estimates to users.
+
+
+That article was intended to strike 
 a balance between the formal mathematics behind the model and the intuitive reasoning
 behind the modeling decision, and as a result it was rather light on the R code
 used to obtain each of the objects that I use. 
@@ -415,4 +417,8 @@ Overall, we do these steps 4 times: one for each matrix that is needed in the si
 
 ## Conclusion
 
-I hope that you have enjoyed reading this post. For the practitioner, I hope that it provides insight into some ways that you can accomplish data cleaning goals while creating statistical objects that could not be easily accomplished with a package. For the more skilled practitioner than me, I'd love to hear your feedback on this process
+I hope that you have enjoyed reading this post. For the practitioner, I hope that it provides insight into some ways that you can accomplish data cleaning goals while creating statistical objects that could not be easily accomplished with a package. For the more skilled practitioner than me, I'd love to hear your feedback on this process.
+
+
+This article is the latest in a series on [Snappa](https://github.com/mdewey131/Snappa-Scoreboard/wiki/An-Overview-of-SnappaMetrics#what-is-snappa).
+For more articles, see [here](/categories/#posts-list-snappa-scoreboard)
