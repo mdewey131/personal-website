@@ -16,7 +16,7 @@ based in Los Angeles. I'm originally from
 Santa Clarita, California, where I lived for the entirety of my childhood. 
 I am the proud recipient of a Master's in Economics and Social Sciences from Bocconi University, 
 and two Bachelor's degrees (one in Economics, and a second in Philosophy) from Loyola Marymount University.
-Within Economics, I have mostly focused on political economy and statistics. My Master's Thesis
+Within Economics, I have mostly focused on Political Economy and Statistics. My Master's Thesis
 explored the role that the internet played in U.S. political polarization between
 1996 and 2012, demonstrating heterogeneous treatment effect sizes in different population 
 subgroups through causal forest machine learning. The curious reader can find a copy
