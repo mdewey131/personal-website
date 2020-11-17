@@ -14,8 +14,9 @@ title: "Building Transition Probabilities From Scratch"
 This article is the latest in a series on [Snappa](https://github.com/mdewey131/Snappa-Scoreboard/wiki/An-Overview-of-SnappaMetrics#what-is-snappa).
 For more articles, see [here](/categories/#posts-list-snappa-scoreboard)
 
-<!--more-->
-
+<br>
+<br>
+<br>
 
 My last [article](/2020/11/snappa-markov-creation/) gave a high-level overview of the reasoning and 
 methodology behind the Markov chain model which the Snappa Scoreboard uses
