@@ -1,0 +1,193 @@
+---
+author: "Michael Dewey"
+slug: "intro-hypothesis-testing"
+date: "2020-11-23"
+output: 
+  blogdown::html_page
+tags:
+  - Rstats
+  - statistics
+categories:
+  - Lessons
+title: "Introduction to Hypothesis Testing"
+draft: true
+runtime: shiny
+---
+
+<script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
+
+
+<p>This lesson is intended to bring together many disparate but crucial elements
+of statistics to explain how and why hypothesis testing works. The full version
+is intended for students in their first undergraduate statistics course and
+takes around half an hour to deliver in tutoring. However, more of the details
+can easily be asserted for students in less rigorous courses, allowing this
+lecture to be delivered to high school students.</p>
+<div id="section-why-do-we-test-hypotheses" class="section level3">
+<h3>Why Do We Test Hypotheses?</h3>
+<p>Throughout your statistics education, you have doubtless heard much about the
+<strong>parameters</strong> of a probability distribution within a population. In the view of
+this lesson<a href="#section-fn1" class="footnote-ref" id="section-fnref1"><sup>1</sup></a>,
+the population’s parameters are constant values which are <em>unknown</em> to us. To set
+an example which will persist throughout this lesson, consider the normal distribution.
+The normal distribution is referred to in common parlance as the “bell curve”; we
+denote a population which has that distribution by writing</p>
+<p><span class="math display">\[ X_i \stackrel{\text{iid}}{\text{~}} \mathcal{N}(\mu, \sigma^2) \]</span>
+The phrase “iid” means <strong>independent and identically distributed</strong>. In short,
+everyone in this population follows the same distribution, and all of the observations
+are independent from one another. The assumption of independence is quite important
+for some results that follow, so it’s necessary to keep it in mind. The parameters
+<span class="math inline">\(\mu\)</span> and <span class="math inline">\(\sigma^2\)</span> are the mean and the variance of the normal distribution<a href="#section-fn2" class="footnote-ref" id="section-fnref2"><sup>2</sup></a></p>
+<p>If we knew the value of the parameters $ $ and $ ^2 $, then we would fully
+know the distribution, meaning that we would perfectly know the probability
+of having any value from that distribution. To see this in action, you can play
+around with the normal distribution below:</p>
+<!--
+This is going to be really cool once I get it to work, I swear
+<iframe height="800" width="100%" frameborder="no" src="https://michael-dewey.shinyapps.io/normal_distribution/"> </iframe>
+-->
+<p>In truth, we will never perfectly know the values of the population, although we
+will assume that we know the variance at times. Hypothesis testing, then, is an
+exercise in understanding what conclusions we can make about values we will never
+know only by using values that we <em>do</em> know.</p>
+</div>
+<div id="section-a-preliminary-example-repeated-coin-tosses" class="section level3">
+<h3>A Preliminary Example: Repeated Coin Tosses</h3>
+<p>To wrap your head around how hypothesis testing works on a mechanical level, consider
+the following example. I hand you a coin with two sides, heads and tails, and I
+tell you that the coin is “fair”, meaning that the chances of getting either heads
+or tails is 50%. Maybe out of a sense of boredom, or because you don’t trust my
+assertion<a href="#section-fn3" class="footnote-ref" id="section-fnref3"><sup>3</sup></a>,
+you flip the coin. After ten flips, you find that six of them have come up with heads.
+After seeing those six heads, would you feel that you have enough evidence to reject
+my claim that the coin is fair?</p>
+<p>You probably shouldn’t. It’s not that unusual to see six heads out of ten when the
+odds are 50-50. In fact, if you were to keep flipping ten times and recording the
+results, around 50% of all of those tests would show a number of heads between
+four and six. If you decided to say something along the lines of “I will doubt that
+this coin is fair if I see six heads or more” and I <strong>wasn’t</strong> lying, there would
+still be about a 26% chance that you erroneously doubt me. Which would hurt my
+feelings.</p>
+<p>What if, instead, you flipped the coin 100 times, finding that 60 out of those
+100 flips came up heads. Would you doubt me then?</p>
+<p>You might, and you’d be on stronger footing to make such a claim. If you kept
+repeating this experiment, you’d find that the chance of getting something higher
+than 60 heads is only about 2%. If you decided to say something along the lines of
+“I will doubt that this coin is fair if I see sixty heads or more” and I wasn’t
+lying about the coin being 50-50, there would only be a 2% chance that you come
+to the wrong conclusion. That’s definitely better than 26%!</p>
+<p>The important thing to keep in mind, however, is that you will <strong>never</strong> be able
+to make a test which is both useful and never makes mistakes of this kind. Hypothesis
+testing asks us to make conclusions based on the data we gathered, which is not the same
+thing as seeing the population parameter for ourselves. You will sometimes
+erroneously doubt me. That’s okay. The important thing is designing a statement,
+like the ones above, which lower the chance of such a mistake to an acceptable level,
+whatever that means for your problem.</p>
+</div>
+<div id="section-formulating-hypotheses" class="section level3">
+<h3>Formulating Hypotheses</h3>
+For the sake of illustration, I’ll be using the same sets of hypotheses throughout
+this page. All throughout, I will make it clear when what I’m saying is not
+general to all hypothesis testing but rather is specific to the hypotheses we
+have chosen. We will also focus, for the sake of simplicity, on the case of single
+hypothesis testing on the mean of a normal distribution. First, some definitions:
+<ul>
+<li>
+The <strong>null hypothesis</strong>, <span class="math inline">\(H_0\)</span> is a statement of what we believe to be true in
+the status quo. It is the best guess for a parameter value given common knowledge
+or past information. It is a statement of equality, like <span class="math inline">\(H_0: \mu = 17\)</span>
+<li>
+The <strong>alternative hypothesis</strong> is a statement of what we believe to be
+true if the null hypothesis is not the case.
+<li>
+An alternative hypothesis is <strong>simple</strong> if it is a statement of equality,
+such as <span class="math inline">\(H_1: \mu = 20\)</span>. For reasons that are not covered here<a href="#section-fn4" class="footnote-ref" id="section-fnref4"><sup>4</sup></a>,
+we will ignore these hypotheses because their associated test is the same as those for
+one-sided alternatives.
+<li>
+An alternative hypothesis is <strong>one-sided</strong> if it is an inequality statement
+which is exclusively greater or exclusively less than the null hypothesis value.
+For example, a one-sided alternative hypothesis for the null above might be
+<span class="math inline">\(H_1: \mu &gt; 17\)</span>, while <span class="math inline">\(H_1: \mu &gt; 19\)</span> would not be.
+<li>
+An alternative hypothesis is <strong>two-sided</strong> if it is an inequality on both
+sides. For the null above, this would be stated as <span class="math inline">\(H_1: \mu \not = 17\)</span>
+</ul>
+<p>As mentioned above, there is no point in using a simple alternative because you
+can do just as well with a one-sided alternative which is on the same side of
+the mean as the simple value. There’s no benefit to being particular in that
+sense. Notice that I did not make such a claim when talking about the two-sided
+alternative as compared to the one-sided, even though a two-sided test would be
+<strong>both</strong> of the one-sided tests at the same time. Take a moment to think about
+why this might be the case. That is, why might it true that a two-sided and
+one-sided alternative hypothesis each have their own uses? We will come to see
+the answer by the end of this post.</p>
+<p>Before we move on to understand how we formulate tests, there are two important
+notes that close this section.</p>
+<div id="section-note-1-we-do-not-accept-the-null" class="section level5">
+<h5>Note 1: We Do Not “Accept The Null”</h5>
+<p>This point is repeated by every textbook covering hypothesis testing, and for
+good reason. Consider the example above about flipping coins. If you were to
+flip heads 55 times out of 100, you would not have good reason to believe that
+the true odds <strong>aren’t</strong> 50-50, but you don’t necessarily have good evidence that
+it <strong>is</strong>, either. Flipping 55 heads out of 100 is also consistent with a slightly
+unfair coin, say 55-45 or 60-40. It would be incorrect, then, to say that this
+evidence proves that the true odds are 50-50. Instead, it only shows that you don’t
+have the evidence to prove it isn’t 50-50, and hence we say that we “fail to reject
+the null”.</p>
+</div>
+<div id="section-note-2-tests-are-fallible" class="section level5">
+<h5>Note 2: Tests are Fallible</h5>
+<p>As I’ve mentioned before, it’s impossible to design a useful test which doesn’t
+make errors. Let’s dig down to precisely understand the nature of these mistakes.
+Without getting too deep into the form of a specific test, let’s say that there
+are two conclusions one can reach: reject the null or do not reject the null.
+Moreover and simplifying heavily, there are two different things which can be
+“true” but unknown to us: either the null or the alternative hypothesis. Therefore,
+we have a natural 2x2 grid whose four conclusions are represented below by memes.</p>
+<table>
+<thead>
+<tr class="header">
+<th align="center"></th>
+<th align="center"><span class="math inline">\(H_0\)</span></th>
+<th align="center"><span class="math inline">\(H_1\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="center">Do Not Reject <span class="math inline">\(H_0\)</span></td>
+<td align="center"><img src="/img/heck_yeah.jpg" /></td>
+<td align="center"><img src="/img/SadKeanu.jpg" /></td>
+</tr>
+<tr class="even">
+<td align="center">Reject <span class="math inline">\(H_0\)</span></td>
+<td align="center"><img src="/img/alsosad.jpg" /></td>
+<td align="center"><img src="/img/heck_yeah.jpg" /></td>
+</tr>
+</tbody>
+</table>
+<p>Obviously, we don’t actually know what’s true in reality. We only see what our tests show, so we can’t truly know if we’re supposed to be happy or not when we get our result. Two of these outcomes are bad for us, but one is worse than the other:</p>
+<ul>
+<li>When we reject the null hypothesis even though it was true in reality (smoking Ben Affleck), we have made a <em>Type I Error</em></li>
+<li>When we fail to reject a null and the alternative was true (sad Keanu), we have made a <em>Type II Error</em></li>
+</ul>
+<p>Of these two, type I is considered worse. Consider the example of a court case. When we state hypotheses, we are putting our null hypothesis “on trial”, and it can either be innocent or guilty, meaning untrue. Our test is the trial, where the evidence from a sample is taken into consideration and we make a verdict- either the null is guilty or it’s “not guilty”<a href="#section-fn5" class="footnote-ref" id="section-fnref5"><sup>5</sup></a>. Just like in a court case, it is considered far worse to convict an innocent null hypothesis than it is to let a guilty null go free.
+Without going too far into the details, we can quantify the probability of making either of these errors once we’re given a test. We call the probability of type I error “alpha”, that is $P() = P() = $. The probability of type II error is fittingly called “beta”, that is <span class="math inline">\(P(\text{Type II Error}) = P(\text{Fail to Reject a False Null}) = \beta\)</span>.</p>
+<p>Those of you with some background in hypothesis testing already will no doubt notice that we already use alpha as a symbol for the significance level. This is not an accident: <strong>the significance level of a test is the probability that such a test makes a type I error</strong>.</p>
+<p>In other words, we define our tests based on our tolerance for convicting an innocent null.</p>
+</div>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="section-fn1"><p>This refers to the frequentist view as opposed to a Bayesian one<a href="#section-fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="section-fn2"><p>
+For the sake of generality, it’s worth noting that that is a particular property
+of the normal distribution. Other distributions, like the binomial, have parameters
+which are not the distribution’s mean or variance.<a href="#section-fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="section-fn3"><p>Statistics is designed for uncertainty, so no offense taken at your curiousity.<a href="#section-fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="section-fn4"><p>The curious reader
+may consult the <a href="https://en.wikipedia.org/wiki/Neyman%E2%80%93Pearson_lemma">Neyman-Pearson Lemma</a><a href="#section-fnref4" class="footnote-back">↩︎</a></p></li>
+<li id="section-fn5"><p>notice we make no conclusion of innocence in an absolute sense off of the basis of our trial.<a href="#section-fnref5" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>

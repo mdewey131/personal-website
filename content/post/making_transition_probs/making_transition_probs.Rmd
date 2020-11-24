@@ -111,7 +111,7 @@ grouped by the `serial_number` of the player, and it is those sums and shot
 percentages which make the data for `performance`. All of the players information
 is summed up in `summary`, and everything is linked together by the game's
 `game_number`. You may also notice that not *everything* is an aggregation of 
-`scoring_events`. There is some additional information added to `summary`,
+`events`. There is some additional information added to `summary`,
 for example the game's `location`, which does not come from `events`. Each table
 expresses a slightly different level of aggregation, and so there are naturally some 
 variables which are game-level attributes and therefore do not make their way into
