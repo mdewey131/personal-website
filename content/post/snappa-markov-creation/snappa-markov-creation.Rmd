@@ -16,7 +16,7 @@ categories:
 thumbnailImage: "/img/simulate_score_shares.jpg"
 thumbnailImagePosition: left
 coverImage: "/img/simulate_score_shares.jpg"
-coverCaption: "A visualization presented to users in-app of the score share across 1000 simulated games, sorted by team A's score differential with B. Here, team A is predicted to win around 30% of the time."
+coverCaption: "The plot of a visualization presented to users in-app of the score share across 1000 simulated games, sorted by team A's score differential with B. Here, team A (red) is predicted to win around 30% of the time, as evidenced by the consistent presence of blue (team B) past the horizontal guide line (50% of points in the game)."
 coverMeta: out
 metaAlignment: center
 title: "Making a Markov Chain Model to Predict Snappa Winners"
@@ -272,7 +272,8 @@ on it, however. For one, I need to be more restrictive about the potential for
 scoring since, as I mentioned above, some score combinations necessarily  means
 that the defending team cannot score. I'd also like to more around the forecasting 
 error that I obtain in the final scores (currently the app's prediction
-is the modal score outcome in games that the "overall winners" win), and to obtain 
+is the modal score outcome in games that the "overall winners" win which I decided more out
+of ease than statistical rigor), and to obtain 
 the variance. For that, I need to continue to re-learn and code. 
 I'd also like to do more around visualization of the games (though I do obviously have
 an affinity for the graph that I've included as the header image), because I think that

@@ -42,7 +42,11 @@ on the raw structure of data to fully explain how cleaning was done.
 library(DBI)
 library(tidyverse)
 library(gt)
-source('../../../../OneDrive/Documents/Snappa-Scoreboard/dbconnect.R')
+# desktop
+location = '../../../../Snappa-Scoreboard/database/db_connect.R'
+# laptop
+# location = '../../../../OneDrive/Documents/Snappa-Scoreboard/database/db_connect.R'
+source(location)
 players = dbReadTable(con, "players")
 names(players) = c("serial_num", "player_id")
 performance = dbReadTable(con, "player_stats")

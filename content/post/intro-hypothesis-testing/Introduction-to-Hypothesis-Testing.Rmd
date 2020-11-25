@@ -41,9 +41,8 @@ which are not the distribution's mean or variance.]
 
 If we knew the value of the parameters $ \mu $ and $ \sigma^2 $, then we would fully 
 know the distribution, meaning that we would perfectly know the probability
-of having any value from that distribution. To see this in action, you can play
-around with the normal distribution below:
-
+of having any value from that distribution. To see this in action, a future version
+of this article will feature a normal distribution that you can interact with below. 
 <!--
 This is going to be really cool once I get it to work, I swear
 <iframe height="800" width="100%" frameborder="no" src="https://michael-dewey.shinyapps.io/normal_distribution/"> </iframe>
@@ -59,7 +58,7 @@ To wrap your head around how hypothesis testing works on a mechanical level, con
 the following example. I hand you a coin with two sides, heads and tails, and I 
 tell you that the coin is "fair", meaning that the chances of getting either heads
 or tails is 50%. Maybe out of a sense of boredom, or because you don't trust my
-assertion^[Statistics is designed for uncertainty, so no offense taken at your curiousity.], 
+assertion^[Statistics is designed for uncertainty, so no offense taken at your curiosity.], 
 you flip the coin. After ten flips, you find that six of them have come up with heads. 
 After seeing those six heads, would you feel that you have enough evidence to reject
 my claim that the coin is fair?
@@ -161,8 +160,8 @@ Obviously, we don't actually know what's true in reality. We only see what our t
 Of these two, type I is considered worse. Consider the example of a court case. When we state hypotheses, we are putting our null hypothesis "on trial", and it can either be innocent or guilty, meaning untrue. Our test is the trial, where the evidence from a sample is taken into consideration and we make a verdict- either the null is guilty or it's "not guilty"^[notice we make no conclusion of innocence in an absolute sense off of the basis of our trial.]. Just like in a court case, it is considered far worse to convict an innocent null hypothesis than it is to let a guilty null go free. 
 Without going too far into the details, we can quantify the probability of making either of these errors once we're given a test. We call the probability of type I error "alpha", that is $P(\text{Type I Error}) = P(\text{Reject a True Null}) = \alpha $. The probability of type II error is fittingly called "beta", that is $P(\text{Type II Error}) = P(\text{Fail to Reject a False Null}) = \beta$.
 
-Those of you with some background in hypothesis testing already will no doubt notice that we already use alpha as a symbol for the significance level. This is not an accident: **the significance level of a test is the probability that such a test makes a type I error**. 
+Those of you with some background in hypothesis testing already will no doubt notice that we already use alpha as a symbol for the significance level. This is not an accident: **the level of a test is the probability that such a test makes a type I error, and for any choice of $\alpha$, we use tests with a level up to $ \alpha $ **. 
 
-In other words, we define our tests based on our tolerance for convicting an innocent null. 
+In other words, we figure out which test to use based on our tolerance for convicting an innocent null. 
 
 
