@@ -9,24 +9,22 @@ output:
 slug: "about-me"
 ---
   Thanks for visiting my site! I'm a freelancer, currently open to full-time work, 
-based in Los Angeles. I'm originally from
-Santa Clarita, California, where I lived for the entirety of my childhood. 
+based in Los Angeles. I'm originally from Santa Clarita, California, where I lived for the entirety of my childhood. 
 I am the proud recipient of a Master's in Economics and Social Sciences from Bocconi University, 
 and two Bachelor's degrees (one in Economics, and a second in Philosophy) from Loyola Marymount University.
 Within Economics, I have mostly focused on Political Economy and Statistics. My Master's Thesis
 explored the role that the internet played in U.S. political polarization between
 1996 and 2012, demonstrating heterogeneous treatment effect sizes in different population 
 subgroups through causal forest machine learning. The curious reader can find a copy
-of that work [here](/pdf/Thesis.pdf). 
+of that work [here](/pdf/Thesis.pdf), and a copy of my resume [here](/pdf/Resume.pdf). 
 
   Since defending my thesis in April of 2020, I have
 been keeping busy by balancing freelancing and personal projects while looking
 for steady employment. You can find a link to my GitHub page in the sidebar, where
 I am currently working on a Shiny app with my friend Mark Barrett. That application tracks
-performance in a game known as [Snappa](https://github.com/mdewey131/Snappa-Scoreboard/wiki/An-Overview-of-SnappaMetrics#what-is-snappa). Although the game itself is quite non-serious (and
-exclusively a weekend activity), the project itself has been an enjoyable source
+performance in a game known as [Snappa](https://github.com/mdewey131/Snappa-Scoreboard/wiki/An-Overview-of-SnappaMetrics#what-is-snappa). Although the game itself is quite non-serious (and exclusively a weekend activity), the project itself has been an enjoyable source
 of personal growth in coding and data analysis. In the future, I'll be making 
-write-ups of some of  the features that I've implemented and the results that I've found. 
+write-ups of some of the features that I've implemented and the results that I've found. 
 
   If you would like to get in contact with me, feel free to reach out. My email and other social
 links are listed in the sidebar, and I'd love to hear from you.
