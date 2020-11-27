@@ -1,21 +1,24 @@
 ---
 author: "Michael Dewey"
-slug: "intro-hypothesis-testing"
+slug: "intro-hypothesis-testing-1"
 date: "2020-11-23"
 output: 
   blogdown::html_page
 tags:
   - Rstats
   - statistics
+  - Hypothesis Testing
 categories:
   - Lessons
-title: "Introduction to Hypothesis Testing"
-draft: true
+title: "Introduction to Hypothesis Testing, Part 1"
 runtime: shiny
 ---
 This lesson is intended to bring together many disparate but crucial elements
-of statistics to explain how and why hypothesis testing works. The full version
-is intended for students in their first undergraduate statistics course and 
+of statistics to explain how and why hypothesis testing works. Part 1 deals with
+the mechanics of hypothesis testing, the types of hypotheses we formulate, and
+some understanding of what can happen when we test. Part 2 will deal with the 
+specific forms of tests that we make. The full version is intended for students 
+in their first undergraduate statistics course and 
 takes around half an hour to deliver in tutoring. However, more of the details
 can easily be asserted for students in less rigorous courses, allowing this 
 lecture to be delivered to high school students.
@@ -39,14 +42,14 @@ For the sake of generality, it's worth noting that that is a particular property
 of the normal distribution. Other distributions, like the binomial, have parameters
 which are not the distribution's mean or variance.]
 
-If we knew the value of the parameters $ \mu $ and $ \sigma^2 $, then we would fully 
+If we knew the value of the parameters $\mu$ and $\sigma^2$, then we would fully 
 know the distribution, meaning that we would perfectly know the probability
-of having any value from that distribution. To see this in action, a future version
-of this article will feature a normal distribution that you can interact with below. 
-<!--
-This is going to be really cool once I get it to work, I swear
-<iframe height="800" width="100%" frameborder="no" src="https://michael-dewey.shinyapps.io/normal_distribution/"> </iframe>
--->
+of having any value from that distribution. To see this in action, you can play
+around with the normal distribution below. Click and drag along the graph to see
+the chance of falling within the area:
+
+<iframe height="600" width="100%" frameborder="no" src="https://michael-dewey.shinyapps.io/companion_app/?normal_distribution"> </iframe>
+
 
 In truth, we will never perfectly know the values of the population, although we 
 will assume that we know the variance at times. Hypothesis testing, then, is an
@@ -58,7 +61,7 @@ To wrap your head around how hypothesis testing works on a mechanical level, con
 the following example. I hand you a coin with two sides, heads and tails, and I 
 tell you that the coin is "fair", meaning that the chances of getting either heads
 or tails is 50%. Maybe out of a sense of boredom, or because you don't trust my
-assertion^[Statistics is designed for uncertainty, so no offense taken at your curiosity.], 
+assertion^[Statistics is designed for uncertainty, so no offense taken at your curiousity.], 
 you flip the coin. After ten flips, you find that six of them have come up with heads. 
 After seeing those six heads, would you feel that you have enough evidence to reject
 my claim that the coin is fair?
@@ -124,8 +127,8 @@ why this might be the case. That is, why might it true that a two-sided and
 one-sided alternative hypothesis each have their own uses? We will come to see
 the answer by the end of this post.
 
-Before we move on to understand how we formulate tests, there are two important
-notes that close this section.
+Before we move on to understand how we formulate tests in the next lesson, there are two 
+important notes that close this portion.
 
 ##### Note 1: We Do Not "Accept The Null"
 This point is repeated by every textbook covering hypothesis testing, and for 
@@ -158,10 +161,18 @@ Obviously, we don't actually know what's true in reality. We only see what our t
 * When we fail to reject a null and the alternative was true (sad Keanu), we have made a *Type II Error* 
 
 Of these two, type I is considered worse. Consider the example of a court case. When we state hypotheses, we are putting our null hypothesis "on trial", and it can either be innocent or guilty, meaning untrue. Our test is the trial, where the evidence from a sample is taken into consideration and we make a verdict- either the null is guilty or it's "not guilty"^[notice we make no conclusion of innocence in an absolute sense off of the basis of our trial.]. Just like in a court case, it is considered far worse to convict an innocent null hypothesis than it is to let a guilty null go free. 
-Without going too far into the details, we can quantify the probability of making either of these errors once we're given a test. We call the probability of type I error "alpha", that is $P(\text{Type I Error}) = P(\text{Reject a True Null}) = \alpha $. The probability of type II error is fittingly called "beta", that is $P(\text{Type II Error}) = P(\text{Fail to Reject a False Null}) = \beta$.
+Without going too far into the details, we can quantify the probability of making either of these errors once we're given a test. We call the probability of type I error "alpha", that is $P(\text{Type I Error}) = P(\text{Reject a True Null}) = \alpha$. The probability of type II error is fittingly called "beta", that is $P(\text{Type II Error}) = P(\text{Fail to Reject a False Null}) = \beta$.
 
-Those of you with some background in hypothesis testing already will no doubt notice that we already use alpha as a symbol for the significance level. This is not an accident: **the level of a test is the probability that such a test makes a type I error, and for any choice of $\alpha$, we use tests with a level up to $ \alpha $ **. 
+Those of you with some background in hypothesis testing already will no doubt notice that we already use alpha as a symbol for the significance level. This is not an accident: **a test at significance level alpha has at most "alpha" probability of making a type I error**. 
 
-In other words, we figure out which test to use based on our tolerance for convicting an innocent null. 
+In other words, we define our tests based on our tolerance for convicting an innocent null.
+
+To return to the coin flipping example, since there is only a 2% chance of doubting me 
+when I was really correct (that is, a 2% chance of making a type I error when your alternative
+hypothesis is that heads is more frequent), then your test "I will doubt you whenever
+I see 60 heads or more" would be **significant** at the 2% level. Such a test would
+also be allowable if you only wanted a 5% significance level, but you could actually
+be less strict and still reject my claim at 5%. We will revisit this concept in a subsequent
+entry on hypothesis testing and p-values. 
 
 

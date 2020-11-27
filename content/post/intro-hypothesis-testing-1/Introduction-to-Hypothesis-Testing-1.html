@@ -1,26 +1,28 @@
 ---
 author: "Michael Dewey"
-slug: "intro-hypothesis-testing"
+slug: "intro-hypothesis-testing-1"
 date: "2020-11-23"
 output: 
   blogdown::html_page
 tags:
   - Rstats
   - statistics
+  - Hypothesis Testing
 categories:
   - Lessons
-title: "Introduction to Hypothesis Testing"
-draft: true
+title: "Introduction to Hypothesis Testing, Part 1"
 runtime: shiny
 ---
 
-<link href="/rmarkdown-libs/anchor-sections/anchor-sections.css" rel="stylesheet" />
-<script src="/rmarkdown-libs/anchor-sections/anchor-sections.js"></script>
+<script src="/rmarkdown-libs/header-attrs/header-attrs.js"></script>
 
 
 <p>This lesson is intended to bring together many disparate but crucial elements
-of statistics to explain how and why hypothesis testing works. The full version
-is intended for students in their first undergraduate statistics course and
+of statistics to explain how and why hypothesis testing works. Part 1 deals with
+the mechanics of hypothesis testing, the types of hypotheses we formulate, and
+some understanding of what can happen when we test. Part 2 will deal with the
+specific forms of tests that we make. The full version is intended for students
+in their first undergraduate statistics course and
 takes around half an hour to deliver in tutoring. However, more of the details
 can easily be asserted for students in less rigorous courses, allowing this
 lecture to be delivered to high school students.</p>
@@ -39,14 +41,13 @@ everyone in this population follows the same distribution, and all of the observ
 are independent from one another. The assumption of independence is quite important
 for some results that follow, so it’s necessary to keep it in mind. The parameters
 <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\sigma^2\)</span> are the mean and the variance of the normal distribution<a href="#section-fn2" class="footnote-ref" id="section-fnref2"><sup>2</sup></a></p>
-<p>If we knew the value of the parameters $ $ and $ ^2 $, then we would fully
+<p>If we knew the value of the parameters <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\sigma^2\)</span>, then we would fully
 know the distribution, meaning that we would perfectly know the probability
-of having any value from that distribution. To see this in action, a future version
-of this article will feature a normal distribution that you can interact with below.
-<!--
-This is going to be really cool once I get it to work, I swear
-<iframe height="800" width="100%" frameborder="no" src="https://michael-dewey.shinyapps.io/normal_distribution/"> </iframe>
---></p>
+of having any value from that distribution. To see this in action, you can play
+around with the normal distribution below. Click and drag along the graph to see
+the chance of falling within the area:</p>
+<iframe height="600" width="100%" frameborder="no" src="https://michael-dewey.shinyapps.io/companion_app/?normal_distribution">
+</iframe>
 <p>In truth, we will never perfectly know the values of the population, although we
 will assume that we know the variance at times. Hypothesis testing, then, is an
 exercise in understanding what conclusions we can make about values we will never
@@ -123,8 +124,8 @@ alternative as compared to the one-sided, even though a two-sided test would be
 why this might be the case. That is, why might it true that a two-sided and
 one-sided alternative hypothesis each have their own uses? We will come to see
 the answer by the end of this post.</p>
-<p>Before we move on to understand how we formulate tests, there are two important
-notes that close this section.</p>
+<p>Before we move on to understand how we formulate tests in the next lesson, there are two
+important notes that close this portion.</p>
 <div id="section-note-1-we-do-not-accept-the-null" class="section level5">
 <h5>Note 1: We Do Not “Accept The Null”</h5>
 <p>This point is repeated by every textbook covering hypothesis testing, and for
@@ -173,9 +174,16 @@ we have a natural 2x2 grid whose four conclusions are represented below by memes
 <li>When we fail to reject a null and the alternative was true (sad Keanu), we have made a <em>Type II Error</em></li>
 </ul>
 <p>Of these two, type I is considered worse. Consider the example of a court case. When we state hypotheses, we are putting our null hypothesis “on trial”, and it can either be innocent or guilty, meaning untrue. Our test is the trial, where the evidence from a sample is taken into consideration and we make a verdict- either the null is guilty or it’s “not guilty”<a href="#section-fn5" class="footnote-ref" id="section-fnref5"><sup>5</sup></a>. Just like in a court case, it is considered far worse to convict an innocent null hypothesis than it is to let a guilty null go free.
-Without going too far into the details, we can quantify the probability of making either of these errors once we’re given a test. We call the probability of type I error “alpha”, that is $P() = P() = $. The probability of type II error is fittingly called “beta”, that is <span class="math inline">\(P(\text{Type II Error}) = P(\text{Fail to Reject a False Null}) = \beta\)</span>.</p>
-<p>Those of you with some background in hypothesis testing already will no doubt notice that we already use alpha as a symbol for the significance level. This is not an accident: <strong>the level of a test is the probability that such a test makes a type I error, and for any choice of <span class="math inline">\(\alpha\)</span>, we use tests with a level up to $ $ </strong>.</p>
-<p>In other words, we figure out which test to use based on our tolerance for convicting an innocent null.</p>
+Without going too far into the details, we can quantify the probability of making either of these errors once we’re given a test. We call the probability of type I error “alpha”, that is <span class="math inline">\(P(\text{Type I Error}) = P(\text{Reject a True Null}) = \alpha\)</span>. The probability of type II error is fittingly called “beta”, that is <span class="math inline">\(P(\text{Type II Error}) = P(\text{Fail to Reject a False Null}) = \beta\)</span>.</p>
+<p>Those of you with some background in hypothesis testing already will no doubt notice that we already use alpha as a symbol for the significance level. This is not an accident: <strong>a test at significance level alpha has at most “alpha” probability of making a type I error</strong>.</p>
+<p>In other words, we define our tests based on our tolerance for convicting an innocent null.</p>
+<p>To return to the coin flipping example, since there is only a 2% chance of doubting me
+when I was really correct (that is, a 2% chance of making a type I error when your alternative
+hypothesis is that heads is more frequent), then your test “I will doubt you whenever
+I see 60 heads or more” would be <strong>significant</strong> at the 2% level. Such a test would
+also be allowable if you only wanted a 5% significance level, but you could actually
+be less strict and still reject my claim at 5%. We will revisit this concept in a subsequent
+entry on hypothesis testing and p-values.</p>
 </div>
 </div>
 <div class="footnotes">
@@ -186,7 +194,7 @@ Without going too far into the details, we can quantify the probability of makin
 For the sake of generality, it’s worth noting that that is a particular property
 of the normal distribution. Other distributions, like the binomial, have parameters
 which are not the distribution’s mean or variance.<a href="#section-fnref2" class="footnote-back">↩︎</a></p></li>
-<li id="section-fn3"><p>Statistics is designed for uncertainty, so no offense taken at your curiosity.<a href="#section-fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="section-fn3"><p>Statistics is designed for uncertainty, so no offense taken at your curiousity.<a href="#section-fnref3" class="footnote-back">↩︎</a></p></li>
 <li id="section-fn4"><p>The curious reader
 may consult the <a href="https://en.wikipedia.org/wiki/Neyman%E2%80%93Pearson_lemma">Neyman-Pearson Lemma</a><a href="#section-fnref4" class="footnote-back">↩︎</a></p></li>
 <li id="section-fn5"><p>notice we make no conclusion of innocence in an absolute sense off of the basis of our trial.<a href="#section-fnref5" class="footnote-back">↩︎</a></p></li>
