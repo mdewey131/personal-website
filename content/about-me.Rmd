@@ -25,6 +25,8 @@ I am currently working on a Shiny app with my friend Mark Barrett. That applicat
 performance in a game known as [Snappa](https://github.com/mdewey131/Snappa-Scoreboard/wiki/An-Overview-of-SnappaMetrics#what-is-snappa). Although the game itself is quite non-serious (and exclusively a weekend activity), the project itself has been an enjoyable source
 of personal growth in coding and data analysis. In the future, I'll be making 
 write-ups of some of the features that I've implemented and the results that I've found. 
+My post speed has slowed down as of late while I work on developing my Python skills for
+future projects. 
 
   If you would like to get in contact with me, feel free to reach out. My email and other social
 links are listed in the sidebar, and I'd love to hear from you.
