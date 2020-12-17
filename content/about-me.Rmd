@@ -4,6 +4,7 @@ comments:       false
 showMeta:       false
 showActions:    false
 coverImage: '/img/about_me_thumbnail.jpg'
+thumbnailImage: '/img/about_me_thumbnail.jpg'
 coverMeta: out
 metaAlignment: center
 output:
