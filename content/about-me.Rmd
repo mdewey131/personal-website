@@ -3,7 +3,8 @@ title: "Hi, I'm Michael"
 comments:       false
 showMeta:       false
 showActions:    false
-#thumbnailImage: //example.com/image.jpg
+coverImage: ' '
+metaAlignment: center
 output:
   blogdown::html_page
 slug: "about-me"
